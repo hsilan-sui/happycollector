@@ -18,6 +18,10 @@
 
 # 修改日誌 Modify log
 
+## 2023/6/7_V1.03,  Thomas
+* 修正 MQTT ping-pong，回傳時的topic
+* 再度修正MQTT Publish中，Freeplaytimes不打負數
+
 ## 2023/6/7_V1.02,  Thomas
 * 完成ping-pong
 * main while delay方式修改
