@@ -27,7 +27,7 @@ IF %ERRORLEVEL% NEQ 0 (
 REM 上傳檔案到 MicroPython 裝置
 %AMPY_PATH% -p %COM_PORT% rm main.py
 %AMPY_PATH% -p %COM_PORT% put BN165DKBDriver.py
-%AMPY_PATH% -p %COM_PORT% put Data_Collection_Main_0525v4RX_task.py
+%AMPY_PATH% -p %COM_PORT% put Data_Collection_Main.py
 %AMPY_PATH% -p %COM_PORT% put senko.py
 %AMPY_PATH% -p %COM_PORT% put wifimgr.py
 %AMPY_PATH% -p %COM_PORT% put wifi.dat

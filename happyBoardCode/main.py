@@ -1,4 +1,4 @@
-# Complete project details at https://RandomNerdTutorials.com
+#2023/6/7_V1.01
 
 import wifimgr
 from time import sleep
@@ -142,6 +142,6 @@ while True:
         pass
     gc.collect()
     print(gc.mem_free())
-    execfile('Data_Collection_Main_0525v4RX_task.py')
+    execfile('Data_Collection_Main.py')
 
 
