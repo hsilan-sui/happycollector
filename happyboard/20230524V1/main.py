@@ -18,7 +18,7 @@ CP = Pin(0, Pin.OUT)
 CE = Pin(0, Pin.OUT)
 PL = Pin(32, Pin.OUT)
 Q7 = Pin(33, Pin.IN)
-
+readKBData()
 try:
     import usocket as socket
 except:
