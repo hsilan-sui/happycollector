@@ -1,0 +1,10 @@
+OTA_user="pc0808f",  # Required
+OTA_repo="happycollector",  # Required
+OTA_branch="alpha",  # Optional: Defaults to "master"
+OTA_working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
+OTA_pass='c0b82a2c-4b03-42a5-92cd-3478798b2a90'
+MQTT_server = 'happycollect.propskynet.com'
+MQTT_user = 'myuser'
+MQTT_pass = 'propskymqtt'
+ap_password = "happywifi"
+token='aad1bf35-0311-4443-82f8-54f14798367c'

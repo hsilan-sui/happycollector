@@ -1,4 +1,4 @@
-VERSION = "V1.04f"
+VERSION = "V1.04g"
 
 import machine
 import binascii
@@ -10,6 +10,8 @@ import network
 import ujson
 from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin
+
+from loadconfig import getconfig
 
 #Based on 2023/8/17_V1.04e, Sam
 
@@ -179,10 +181,10 @@ class InternetData:
 
 
 def connect_mqtt():
-    mq_server = 'happycollect.propskynet.com'
+    mq_server = getconfig().get('MQTT_server')
     mq_id = my_internet_data.mac_address
-    mq_user = 'myuser'
-    mq_pass = 'propskymqtt'
+    mq_user = getconfig().get('MQTT_user')
+    mq_pass = getconfig().get('MQTT_pass')
     while True:
         try:
             mq_client = MQTTClient(mq_id, mq_server, user=mq_user, password=mq_pass)
@@ -209,7 +211,7 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
         if topic.decode() == (mq_topic + '/fota'):
             otafile = 'otalist.dat'
             if ('file_list' in data) and ('password' in data):
-                if data['password'] == 'c0b82a2c-4b03-42a5-92cd-3478798b2a90':
+                if data['password'] == getconfig().get('OTA_pass')
                     #print("password checked")
                     publish_MQTT_claw_data(claw_1, 'fotaack')                    
                     with open(otafile, "w") as f:
@@ -662,3 +664,4 @@ while True:
     formatted_time = "{:02d}/{:02d} {:02d}:{:02d}".format(local_time[1], local_time[2], local_time[3], local_time[4])
     dis.draw_text(spleen16,  formatted_time, 5 * 8, 6 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)    #顯示時間
     dis.dev.show()
+
