@@ -180,10 +180,10 @@ class InternetData:
 
 
 def connect_mqtt():
-    mq_server = 'happycollect.propskynet.com'
+    mq_server = 'broker.MQTTGO.io'
     mq_id = my_internet_data.mac_address
-    mq_user = 'myuser'
-    mq_pass = 'propskymqtt'
+    mq_user = 'user123'
+    mq_pass = 'user123'
     while True:
         try:
             mq_client = MQTTClient(mq_id, mq_server, user=mq_user, password=mq_pass)
@@ -206,7 +206,7 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
         print("MQTT Subscribe data:", data)
 
         macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token
+        mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token
         if topic.decode() == (mq_topic + '/fota'):
             otafile = 'otalist.dat'
             if ('file_list' in data) and ('password' in data):
@@ -225,6 +225,12 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                 publish_MQTT_claw_data(claw_1, 'commandack-pong')
             elif data['commands'] == 'version':
                 publish_MQTT_claw_data(claw_1, 'commandack-version')
+            elif data['commands'] == 'on':
+                publish_MQTT_claw_data(claw_1, 'commandack-on',data['state'])
+            elif data['commands'] == 'off':
+                publish_MQTT_claw_data(claw_1, 'commandack-off',data['state'])
+            elif data['commands'] == 'restart':
+                publish_MQTT_claw_data(claw_1, 'commandack-restart',data['state'])
             elif data['commands'] == 'clawreboot':
                 if 'state' in data:
                     publish_MQTT_claw_data(claw_1, 'commandack-clawreboot',data['state'])
@@ -250,10 +256,10 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
 def subscribe_MQTT_claw_topic():  # MQTT_client暫時固定為mq_client_1
     mq_client_1.set_callback(subscribe_MQTT_claw_recive_callback)
     macid = my_internet_data.mac_address
-    mq_topic = macid + '/' + token + '/commands'
+    mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/commands'
     mq_client_1.subscribe(mq_topic)
     print("MQTT Subscribe topic:", mq_topic)
-    mq_topic = macid + '/' + token + '/fota'
+    mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/fota'
     mq_client_1.subscribe(mq_topic)
     print("MQTT Subscribe topic:", mq_topic)
 
@@ -276,7 +282,7 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
             WCU_Freeplaytimes = 0
             # 上行是 Thomas 測試
         macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/sales'
+        mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/sales'
         MQTT_claw_data = {
             "Epayplaytimes": claw_data.Number_of_Original_Payment,
             "Coinplaytimes": claw_data.Number_of_Coin,
@@ -287,35 +293,36 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
         }
     elif MQTT_API_select == 'status':
         macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/status'
+        mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/status'
         MQTT_claw_data = {
             "status": "%02d" % (claw_data.Error_Code_of_Machine),
             "time":   utime.time()
         }
     elif MQTT_API_select == 'commandack-pong':
         macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/commandack'
+        mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/commandack'
         MQTT_claw_data = {
             "ack": "pong",
             "time": utime.time()
         }
     elif MQTT_API_select == 'commandack-version':
         macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/commandack'
+        mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/commandack'
         MQTT_claw_data = {
             "ack":  VERSION,
             "time": utime.time()
         }
+        
     elif MQTT_API_select == 'fotaack':
         macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/fotaack'
+        mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/fotaack'
         MQTT_claw_data = {
             "ack": "OK",
             "time": utime.time()
         }
     elif MQTT_API_select == 'commandack-clawreboot':
         macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/commandack'
+        mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/commandack'
         if para1=="" :
             MQTT_claw_data = {
                 "ack": "OK",
@@ -326,21 +333,63 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
                 "ack": "OK",
                 "state" : para1,
                 "time": utime.time()
-            }            
-    elif MQTT_API_select == 'commandack-clawstartgame':
+            }
+    elif MQTT_API_select == 'commandack-on':
         macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/commandack'
+        mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/commandsack'
         if para1=="" :
             MQTT_claw_data = {
-                "ack": "OK",
+                "ack": "on",
                 "time": utime.time()
             }
         else :
             MQTT_claw_data = {
-                "ack": "OK",
+                "ack": "on",
                 "state" : para1,
                 "time": utime.time()
-            }                   
+            }
+    elif MQTT_API_select == 'commandack-on':
+        macid = my_internet_data.mac_address
+        mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/commandsack'
+        if para1=="" :
+            MQTT_claw_data = {
+                "ack": "on",
+                "time": utime.time()
+            }
+        else :
+            MQTT_claw_data = {
+                "ack": "on",
+                "state" : para1,
+                "time": utime.time()
+            }              
+    elif MQTT_API_select == 'commandack-off':
+        macid = my_internet_data.mac_address
+        mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/commandack'
+        if para1=="" :
+            MQTT_claw_data = {
+                "ack": "off",
+                "time": utime.time()
+            }
+        else :
+            MQTT_claw_data = {
+                "ack": "off",
+                "state" : para1,
+                "time": utime.time()
+            }
+    elif MQTT_API_select == 'commandack-restart':
+        macid = my_internet_data.mac_address
+        mq_topic = '03ac6a6316d8fd2c7401249b6ca30a0638f55f443568c6baf96cd9d39b5f1451/' + macid + '/' + token + '/commandack'
+        if para1=="" :
+            MQTT_claw_data = {
+                "ack": "restart",
+                "time": utime.time()
+            }
+        else :
+            MQTT_claw_data = {
+                "ack": "restart",
+                "state" : para1,
+                "time": utime.time()
+            }             
     mq_json_str = ujson.dumps(MQTT_claw_data)
     publish_data(mq_client_1, mq_topic, mq_json_str)
 
@@ -525,7 +574,7 @@ def server_report_timer_callback(timer):
         global server_report_sales_counter
         server_report_sales_counter = (server_report_sales_counter + 1) % server_report_sales_period
         if server_report_sales_counter == 0:
-            publish_MQTT_claw_data(claw_1, 'sales')
+            # publish_MQTT_claw_data(claw_1, 'sales')
             # if claw_1.Error_Code_of_Machine != 0x00 :
             publish_MQTT_claw_data(claw_1, 'status')
 
