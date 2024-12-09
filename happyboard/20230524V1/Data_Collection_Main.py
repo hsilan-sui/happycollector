@@ -1,4 +1,4 @@
-VERSION = "V1.07b"
+VERSION = "V1.07b_suitest"
 
 import machine
 import binascii
