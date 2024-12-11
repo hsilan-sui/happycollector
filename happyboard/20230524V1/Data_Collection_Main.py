@@ -1,4 +1,4 @@
-VERSION = "V1.07b_sui_test"
+VERSION = "V1.07b_sui"
 
 import machine
 import binascii
@@ -228,8 +228,22 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                 if 'state' in data:
                     publish_MQTT_claw_data(claw_1, 'commandack-clawstartgame',data['state'])
                     epays=data['epays'] 
-                    freeplays=data['freeplays']
+                    freeplays=data['freeplays'] #組成參數
                     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)
+            # 清除:遠端帳目 
+            elif data['commands'] == 'clawcleantransaccount':
+                # mqtt 驅動清除的主題 (我還沒有在account中寫入 Freeplaytimes 待處理 封包不同)
+#                 {
+#                     "commands":"clawcleantransaccount",
+#                     "account":"Epayplaytimes, Coinplaytimes, Giftplaytimes, GiftOuttimes",
+#                     "state" : "3d64d18f-aa0b-4735-b1f2-bd549531feb0",
+#                     "time": 15000
+#                 }
+                if 'state' in data and 'account' in data:
+                    clawcleanitems = data['account'].split(', ')  # 將接收的account項目轉為list
+                    publish_MQTT_claw_data(claw_1, 'commandack-clawcleantransaccount', data['state'])
+                    # 統一把mqtt驅動傳過來的account內容 組成list 變成參數 傳送封包那裏再做判斷 這裡簡化處理
+                    uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Clean_transaction_account, clawcleanitems)
             elif data['commands'] == 'fileinfo':
                 publish_MQTT_claw_data(claw_1, 'commandack-fileinfo',data['filename'])
                 pass
@@ -355,6 +369,21 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
                 "state" : para1,
                 "time": utime.time()
             }
+    #commandack-clearTransClawData
+    elif MQTT_API_select == 'commandack-clawcleantransaccount':
+        macid = my_internet_data.mac_address
+        mq_topic = macid + '/' + token + '/commandack'
+        if para1=="" :
+            MQTT_claw_data = {
+                "ack": "OK",
+                "time": utime.time()
+            }
+        else :
+            MQTT_claw_data = {
+                "ack": "OK",
+                "state" : para1,
+                "time": utime.time()
+            }
     elif MQTT_API_select == 'commandack-fileinfo':
         #check file exist
         #read file info
@@ -458,8 +487,11 @@ class KindFEILOLIcmd:
     Send_Payment_countdown_Or_fail = 231
     #     Send_Starting_games = 220
     Send_Starting_once_game = 221
-    Ask_Transaction_account = 321
-    Ask_Coin_account = 322
+    Ask_Transaction_account = 321 # 查詢:遠端帳目
+    #Ask_Coin_account = 322 # 查詢:投幣帳目
+    
+    Send_Clean_transaction_account = 323 # 清除:遠端帳目
+    #Clean_Coin_account = 324 ## 清除:投幣帳目
     Ask_Machine_setting = 431
 
 
@@ -536,7 +568,7 @@ class ReceivedClawData:
 FEILOLI_packet_id = 0
 
 
-def uart_FEILOLI_send_packet(FEILOLI_cmd):
+def uart_FEILOLI_send_packet(FEILOLI_cmd, new_parameters=None):
     global FEILOLI_packet_id
     FEILOLI_packet_id = (FEILOLI_packet_id + 1) % 256
     if FEILOLI_cmd == KindFEILOLIcmd.Ask_Machine_status:
@@ -552,9 +584,40 @@ def uart_FEILOLI_send_packet(FEILOLI_cmd):
     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Starting_once_game:
         uart_send_packet = bytearray([0xBB, 0x73, 0x01, 0x02, 0x01, 0x01, 0x00, 0x00,
                                       0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
-    elif FEILOLI_cmd == KindFEILOLIcmd.Ask_Transaction_account:
+    elif FEILOLI_cmd == KindFEILOLIcmd.Ask_Transaction_account: #查詢:遠端帳目
         uart_send_packet = bytearray([0xBB, 0x73, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
                                       0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
+    elif FEILOLI_cmd == KindFEILOLIcmd.Send_Clean_transaction_account: #清除:遠端帳目
+        # 初始化封包:以下是查詢:遠端帳目封包 只要是清除 該封包的位置就會是0x01 
+        uart_send_packet = bytearray([
+            0xBB, 0x73, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA
+        ])
+
+        # 定義帳目與封包index對應
+        clawcleanitems_positions = {
+            'Epayplaytimes': 5,
+            'Coinplaytimes': 7,
+            'Giftplaytimes': 9,
+            'GiftOuttimes': 11,
+            #'Freeplaytimes': ?, #待定義 封包內容不同 ==>有需要清除FP的需求
+        }
+
+        if new_parameters is None or set(new_parameters) == set(clawcleanitems_positions.keys()):
+            # 全部清除
+            ## 取出clawcleanitems_positions中定義的key值對應封包index
+            for pos in clawcleanitems_positions.values():
+                #將該封包對應的index位置 寫入0x01代表清除該項目
+                uart_send_packet[pos] = 0x01
+        else:
+            # 部分清除(從MQTT驅動過來 傳入的參數)
+            for item in new_parameters:
+                # 比對clawcleanitems_positions的key
+                if item in clawcleanitems_positions:
+                    #透過key取得封包index 來寫入清除的cmd 0x01
+                    uart_send_packet[clawcleanitems_positions[item]] = 0x01
+                else:
+                    print(f"未知的封包清除項目: {item}")
     if uart_send_packet[13] == FEILOLI_packet_id:
         for i in range(2, 14):
             uart_send_packet[15] ^= uart_send_packet[i]
@@ -606,7 +669,14 @@ def uart_FEILOLI_recive_packet_task():
                                 claw_1.Number_of_Coin = uart_recive_packet[8] * 256 + uart_recive_packet[9]                 # 投幣次數
                                 claw_1.Number_of_Award = uart_recive_packet[10] * 256 + uart_recive_packet[11]              # 禮品出獎次數
                                 claw_1.Error_Code_of_Machine = uart_recive_packet[12]                   # 六、 機台故障代碼表
-                                print("Recive 娃娃機 : 三、 帳目查詢\遠端帳目")            
+                                print("Recive 娃娃機 : 三、 帳目查詢=>遠端帳目")   
+                            elif uart_recive_packet[2] == 0x82 and uart_recive_packet[3] == 0x02:               # CMD => 三、 帳目查詢\投幣帳目
+                                claw_1.Bank_of_Award_rate = uart_recive_packet[4] * 256 + uart_recive_packet[5]     # 中獎率銀行
+                                claw_1.Number_of_Total_games = uart_recive_packet[6] * 256 + uart_recive_packet[7]         # 總遊戲次數
+                                claw_1.Number_of_Award = uart_recive_packet[8] * 256 + uart_recive_packet[9]                 # 禮品出獎次數
+    
+                                claw_1.Error_Code_of_Machine = uart_recive_packet[12]                   # 六、 機台故障代碼表
+                                print("Recive 娃娃機 : 三、 帳目查詢=>投幣帳目")         
                             LCD_update_flag['Claw_Value'] = True
                             now_main_state.transition('FEILOLI UART is OK')
                             utime.sleep_ms(100)     # 休眠一小段時間，避免過度使用CPU資源
