@@ -669,14 +669,7 @@ def uart_FEILOLI_recive_packet_task():
                                 claw_1.Number_of_Coin = uart_recive_packet[8] * 256 + uart_recive_packet[9]                 # 投幣次數
                                 claw_1.Number_of_Award = uart_recive_packet[10] * 256 + uart_recive_packet[11]              # 禮品出獎次數
                                 claw_1.Error_Code_of_Machine = uart_recive_packet[12]                   # 六、 機台故障代碼表
-                                print("Recive 娃娃機 : 三、 帳目查詢=>遠端帳目")   
-                            elif uart_recive_packet[2] == 0x82 and uart_recive_packet[3] == 0x02:               # CMD => 三、 帳目查詢\投幣帳目
-                                claw_1.Bank_of_Award_rate = uart_recive_packet[4] * 256 + uart_recive_packet[5]     # 中獎率銀行
-                                claw_1.Number_of_Total_games = uart_recive_packet[6] * 256 + uart_recive_packet[7]         # 總遊戲次數
-                                claw_1.Number_of_Award = uart_recive_packet[8] * 256 + uart_recive_packet[9]                 # 禮品出獎次數
-    
-                                claw_1.Error_Code_of_Machine = uart_recive_packet[12]                   # 六、 機台故障代碼表
-                                print("Recive 娃娃機 : 三、 帳目查詢=>投幣帳目")         
+                                print("Recive 娃娃機 : 三、 帳目查詢=>遠端帳目")           
                             LCD_update_flag['Claw_Value'] = True
                             now_main_state.transition('FEILOLI UART is OK')
                             utime.sleep_ms(100)     # 休眠一小段時間，避免過度使用CPU資源
