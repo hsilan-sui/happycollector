@@ -230,15 +230,19 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                     epays=data['epays'] 
                     freeplays=data['freeplays'] #組成參數
                     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)
-            # 清除:遠端帳目 
+            #新增內容:subscribe_MQTT_claw_recive_callback() mqtt驅動清除:遠端帳目 指令
+            #Based on　2024/02/22_V1.07b, Thomas
+            #  1. 新增mqtt 'commands' : 'clawcleantransaccount'
+            #  2. mqtt驅動清除的主題:
+            # {
+            # "commands":"clawcleantransaccount",
+            # "account":"Epayplaytimes, Coinplaytimes, Giftplaytimes, GiftOuttimes",
+            # "state" : "3d64d18f-aa0b-4735-b1f2-bd549531feb0",
+            # "time": 15000
+            #  }
+            #　3. 將接收的account項目轉為list
+            #  4. 統一把mqtt驅動傳過來的account內容 組成list變成參數 傳送封包那裏再做判斷 這裡簡化處理
             elif data['commands'] == 'clawcleantransaccount':
-                # mqtt 驅動清除的主題 (我還沒有在account中寫入 Freeplaytimes 待處理 封包不同)
-#                 {
-#                     "commands":"clawcleantransaccount",
-#                     "account":"Epayplaytimes, Coinplaytimes, Giftplaytimes, GiftOuttimes",
-#                     "state" : "3d64d18f-aa0b-4735-b1f2-bd549531feb0",
-#                     "time": 15000
-#                 }
                 if 'state' in data and 'account' in data:
                     clawcleanitems = data['account'].split(', ')  # 將接收的account項目轉為list
                     publish_MQTT_claw_data(claw_1, 'commandack-clawcleantransaccount', data['state'])
@@ -587,6 +591,14 @@ def uart_FEILOLI_send_packet(FEILOLI_cmd, new_parameters=None):
     elif FEILOLI_cmd == KindFEILOLIcmd.Ask_Transaction_account: #查詢:遠端帳目
         uart_send_packet = bytearray([0xBB, 0x73, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
                                       0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
+    #新增內容uart_send_packet() 清除:遠端帳目 封包指令
+            #Based on　2024/02/22_V1.07b, Thomas
+            #  1. 透過mqtt 'commands' : 'clawcleantransaccount'觸發
+            #  2. 初始化封包:以下是查詢:遠端帳目封包 只要是清除 該封包的位置就會是0x01
+            #  3. 定義帳目與封包index對應
+            #　4. uart_FEILOLI_send_packet() 
+            #    =>判斷傳送封包函式有無傳入參數 無參數就傳送一鍵清除封包
+            #    =>判斷傳送封包有無傳入參數 有傳參 比對參數的key值 透過key取得封包index 來寫入清除的cmd 0x01 =>部分清除
     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Clean_transaction_account: #清除:遠端帳目
         # 初始化封包:以下是查詢:遠端帳目封包 只要是清除 該封包的位置就會是0x01 
         uart_send_packet = bytearray([
@@ -597,10 +609,9 @@ def uart_FEILOLI_send_packet(FEILOLI_cmd, new_parameters=None):
         # 定義帳目與封包index對應
         clawcleanitems_positions = {
             'Epayplaytimes': 5,
-            'Coinplaytimes': 7,
-            'Giftplaytimes': 9,
+            'Giftplaytimes': 7,
+            'Coinplaytimes': 9,
             'GiftOuttimes': 11,
-            #'Freeplaytimes': ?, #待定義 封包內容不同 ==>有需要清除FP的需求
         }
 
         if new_parameters is None or set(new_parameters) == set(clawcleanitems_positions.keys()):
@@ -745,7 +756,10 @@ def LCD_update_timer_callback(timer):
         dis.draw_text(spleen16, 'IN:--------', 0, 1 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
         dis.draw_text(spleen16, 'OUT:--------', 0, 2 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
         dis.draw_text(spleen16, 'EP:--------', 0, 3 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-        dis.draw_text(spleen16, 'FP:--------', 0, 4 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        #更動內容: LCD_update_timer_callback(timer)函式
+            #Based on　2024/02/22_V1.07b, Thomas
+            #  1. 將lcd顯示在畫面上的”FP”更改為 GP 也就是Giftplaytimes
+        dis.draw_text(spleen16, 'GP:--------', 0, 4 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
         dis.draw_text(spleen16, 'ST:--', 0, 5 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
         dis.draw_text(spleen16, 'Time:mm/dd hh:mm', 0, 6 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
         dis.draw_text(spleen16, 'Wifi:-----', 0, 7 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0) 
