@@ -230,7 +230,7 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                     epays=data['epays'] 
                     freeplays=data['freeplays'] #組成參數
                     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)
-            #新增內容:subscribe_MQTT_claw_recive_callback() mqtt驅動清除:遠端帳目 指令
+            #新增內容:mqtt驅動清除:遠端帳目 指令
             #Based on　2024/02/22_V1.07b, Thomas
             #  1. 新增mqtt 'commands' : 'clawcleantransaccount'
             #  2. mqtt驅動清除的主題:
