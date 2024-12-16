@@ -227,21 +227,22 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
             elif data['commands'] == 'clawstartgame':
                 if 'state' in data:
                     publish_MQTT_claw_data(claw_1, 'commandack-clawstartgame',data['state'])
-                    epays=data['epays'] 
-                    freeplays=data['freeplays'] #組成參數
-                    uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)
-            #新增內容:mqtt驅動清除:遠端帳目 指令
-            #Based on　2024/02/22_V1.07b, Thomas
-            #  1. 新增mqtt 'commands' : 'clawcleantransaccount'
-            #  2. mqtt驅動清除的主題:
-            # {
-            # "commands":"clawcleantransaccount",
-            # "account":"Epayplaytimes, Coinplaytimes, Giftplaytimes, GiftOuttimes",
-            # "state" : "3d64d18f-aa0b-4735-b1f2-bd549531feb0",
-            # "time": 15000
-            #  }
-            #　3. 將接收的account項目轉為list
-            #  4. 統一把mqtt驅動傳過來的account內容 組成list變成參數 傳送封包那裏再做判斷 這裡簡化處理
+                    # 提取mqtt 傳送來的epays 和freeplays值並驗證參數範圍
+                    epays = data.get('epays', None)
+                    freeplays = data.get('freeplays', None)
+                    # 將接收mqtt server的指令轉為dict(啟動次數 與 贈局數)
+                    if not (1 <= epays <= 40):
+                        raise ValueError(f"錯誤的epays值: {epays} 範圍在1~40")
+                    if not (0 <= freeplays <= 10):
+                        raise ValueError(f"錯誤的freeplays值: {freeplays} 範圍在0~10")
+                    
+                    # 將 epays 和 freeplays 組成參數物件
+                    clawstartgamesitem = {
+                        "epays": epays,
+                        "freeplays": freeplays
+                    }
+                     # 調用 UART 發送遊戲啟動指令 帶參數或不帶參數
+                    uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game, clawstartgamesitem)
             elif data['commands'] == 'clawcleantransaccount':
                 if 'state' in data and 'account' in data:
                     clawcleanitems = data['account'].split(', ')  # 將接收的account項目轉為list
@@ -586,8 +587,25 @@ def uart_FEILOLI_send_packet(FEILOLI_cmd, new_parameters=None):
     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Payment_countdown_Or_fail:
         pass
     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Starting_once_game:
-        uart_send_packet = bytearray([0xBB, 0x73, 0x01, 0x02, 0x01, 0x01, 0x00, 0x00,
-                                      0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
+        # 初始化遊戲啟動封包
+        uart_send_packet = bytearray([
+            0xBB, 0x73, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA
+        ])
+
+        # 如果沒有帶入參數是None，遊戲啟動一次
+        if new_parameters is None:
+            uart_send_packet[5] = 0x01  # 默認啟動次數1次
+        else:
+            # 定義啟動次數 啟動贈局數 與封包index對應
+            clawitems_positions = {
+                'epays': 5,       # 啟動次數對應封包索引
+                'freeplays': 6    # 贈局數對應封包索引
+            }
+            for key, value in new_parameters.items():
+                if key in clawitems_positions:
+                    uart_send_packet[clawitems_positions[key]] = value
+                    
     elif FEILOLI_cmd == KindFEILOLIcmd.Ask_Transaction_account: #查詢:遠端帳目
         uart_send_packet = bytearray([0xBB, 0x73, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
                                       0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
