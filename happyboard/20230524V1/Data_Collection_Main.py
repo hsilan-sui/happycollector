@@ -1,5 +1,7 @@
-VERSION = "V1.07b0_sui"
+VERSION = "V1.07b1_sui"
+# test V1.07b1_sui  # 四 機台設定查詢:  加入抓力電壓
 # test V1.07b0_sui  # 四 機台設定查詢:  拆模組ReceivedClawData&整理模組
+
 
 #標準庫
 import machine
@@ -16,7 +18,6 @@ from umqtt.simple import MQTTClient
 #本地
 from received_claw_data import ReceivedClawData
 from dr.st7735.st7735_4bit import ST7735
-
 
 
 #Based on 2023/12/25_V1.07a, Sam 
@@ -254,6 +255,23 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                     publish_MQTT_claw_data(claw_1, 'commandack-clawcleantransaccount', data['state'])
                     # 統一把mqtt驅動傳過來的account內容 組成list 變成參數 傳送封包那裏再做判斷 這裡簡化處理
                     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Clean_transaction_account, clawcleanitems)
+            #機台設定:抓力電壓
+            elif data['commands'] == 'clawmachinesetting':  
+                if 'setting' in data:
+                    clawsettingitem = data['setting'].strip()  # 取得單一的設定項目
+                    
+                    valid_settings = ["BasicsettingA", "BasicsettingB", "BasicsettingC", "Clawvoltage", "Motorspeed"]
+                    
+                    if clawsettingitem in valid_settings:           
+                        # 發送 UART 指令
+                        uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Machine_setting, clawsettingitem)
+                    else:
+                        # 無效的設定項目
+                        print(f"Invalid setting received: {clawsettingitem}")
+                        # # 發布 MQTT 訊息 =>改寫到收到娃娃機封包回傳再上傳
+                        # publish_MQTT_claw_data(claw_1, 'commandack-clawclaw', clawsettingitem)
+                else:
+                    print("Missing 'setting' field in the received data") 
             elif data['commands'] == 'fileinfo':
                 publish_MQTT_claw_data(claw_1, 'commandack-fileinfo',data['filename'])
                 pass
@@ -394,6 +412,26 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
                 "state" : para1,
                 "time": utime.time()
             }
+    # 機台設定
+    elif MQTT_API_select == 'commandack-clawmachinesetting':
+        macid = my_internet_data.mac_address
+        mq_topic = macid + '/' + token + '/commandack'
+        #抓力電壓
+        if para1=='Clawvoltage':
+            MQTT_claw_data = {
+                "HiVoltageValue": claw_data.Value_of_Hi_voltage, #強電壓數值
+                "MidVoltageValue": claw_data.Value_of_Mid_voltage, #中電壓數值
+                "LoVoltageValue": claw_data.Value_of_Lo_voltage, #弱電壓數值數值
+                "MidVoltageTopDistance":  claw_data.Distance_of_Mid_voltage_and_Top, #中壓距離頂點
+                "GuaranteedPrizeHiVoltage": claw_data.Hi_voltage_of_Guaranteed_prize, #保夾的強電壓
+                "time": utime.time()
+            }
+        else :
+            MQTT_claw_data = {
+                "ack": "sui_OK",
+                "state" : para1,
+                "time": utime.time()
+            }
     elif MQTT_API_select == 'commandack-fileinfo':
         #check file exist
         #read file info
@@ -508,9 +546,17 @@ class KindFEILOLIcmd:
 # 发送封包給娃娃機的副程式
 FEILOLI_packet_id = 0
 
+# 機台設定封包:index[4]
+clawsettingdict = {
+    "BasicsettingA": 0x00,
+    "BasicsettingB": 0x01,
+    "BasicsettingC": 0x02,
+    "Clawvoltage": 0x03,#抓力電壓
+    "Motorspeed": 0x04,
+}
 
 def uart_FEILOLI_send_packet(FEILOLI_cmd, new_parameters=None):
-    global FEILOLI_packet_id
+    global FEILOLI_packet_id, clawsettingdict
     FEILOLI_packet_id = (FEILOLI_packet_id + 1) % 256
     if FEILOLI_cmd == KindFEILOLIcmd.Ask_Machine_status:
         uart_send_packet = bytearray([0xBB, 0x73, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00,
@@ -545,14 +591,6 @@ def uart_FEILOLI_send_packet(FEILOLI_cmd, new_parameters=None):
     elif FEILOLI_cmd == KindFEILOLIcmd.Ask_Transaction_account: #查詢:遠端帳目
         uart_send_packet = bytearray([0xBB, 0x73, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
                                       0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
-    #新增內容uart_send_packet() 清除:遠端帳目 封包指令
-            #Based on　2024/02/22_V1.07b, Thomas
-            #  1. 透過mqtt 'commands' : 'clawcleantransaccount'觸發
-            #  2. 初始化封包:以下是查詢:遠端帳目封包 只要是清除 該封包的位置就會是0x01
-            #  3. 定義帳目與封包index對應
-            #　4. uart_FEILOLI_send_packet() 
-            #    =>判斷傳送封包函式有無傳入參數 無參數就傳送一鍵清除封包
-            #    =>判斷傳送封包有無傳入參數 有傳參 比對參數的key值 透過key取得封包index 來寫入清除的cmd 0x01 =>部分清除
     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Clean_transaction_account: #清除:遠端帳目
         # 初始化封包:以下是查詢:遠端帳目封包 只要是清除 該封包的位置就會是0x01 
         uart_send_packet = bytearray([
@@ -583,6 +621,11 @@ def uart_FEILOLI_send_packet(FEILOLI_cmd, new_parameters=None):
                     uart_send_packet[clawcleanitems_positions[item]] = 0x01
                 else:
                     print(f"未知的封包清除項目: {item}")
+    #機台設定
+    elif FEILOLI_cmd == KindFEILOLIcmd.Ask_Machine_setting: 
+        if new_parameters:
+            clawsettingitem = new_parameters
+            uart_send_packet = bytearray([0xBB, 0x73, 0x03, 0x01, clawsettingdict[clawsettingitem], 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
     if uart_send_packet[13] == FEILOLI_packet_id:
         for i in range(2, 14):
             uart_send_packet[15] ^= uart_send_packet[i]
@@ -599,7 +642,7 @@ uart_FEILOLI_rx_queue = []
 
 # 從佇列中讀取資料的任務
 def uart_FEILOLI_recive_packet_task():
-    global claw_1, uart_FEILOLI
+    global claw_1, uart_FEILOLI, clawsettingdict
     while True:
         if uart_FEILOLI.any():
             receive_data = uart_FEILOLI.readline()
@@ -634,7 +677,23 @@ def uart_FEILOLI_recive_packet_task():
                                 claw_1.Number_of_Coin = uart_recive_packet[8] * 256 + uart_recive_packet[9]                 # 投幣次數
                                 claw_1.Number_of_Award = uart_recive_packet[10] * 256 + uart_recive_packet[11]              # 禮品出獎次數
                                 claw_1.Error_Code_of_Machine = uart_recive_packet[12]                   # 六、 機台故障代碼表
-                                print("Recive 娃娃機 : 三、 帳目查詢=>遠端帳目")           
+                                print("Recive 娃娃機 : 三、 帳目查詢=>遠端帳目")     
+                            # 機台設定
+                            elif uart_recive_packet[2] == 0x83:
+                                cmd = uart_recive_packet[3]
+                                #反向查詢 透過封包查找到命令名稱
+                                setting_name = {v: k for k,v in clawsettingdict.items()}.get(cmd)
+
+                                if setting_name == "Clawvoltage": # CMD => 四、 機台設定\抓力電壓
+                                    claw_1.Value_of_Hi_voltage = uart_recive_packet[4] * 0.2
+                                    claw_1.Value_of_Mid_voltage = uart_recive_packet[5] * 0.2
+                                    claw_1.Value_of_Lo_voltage = uart_recive_packet[6] * 0.2
+                                    claw_1.Distance_of_Mid_voltage_and_Top = uart_recive_packet[7] 
+                                    claw_1.Hi_voltage_of_Guaranteed_prize = uart_recive_packet[8] * 0.2 
+                                    claw_1.Error_Code_of_Machine = uart_recive_packet[12]                   # 六、 機台故障代碼表
+                                    print("Recive 娃娃機: 四、機台設定\抓力電壓") 
+                                # 發布 MQTT 訊息(可以確定判斷式統一發布)
+                                publish_MQTT_claw_data(claw_1, 'commandack-clawmachinesetting', setting_name)     
                             LCD_update_flag['Claw_Value'] = True
                             now_main_state.transition('FEILOLI UART is OK')
                             utime.sleep_ms(100)     # 休眠一小段時間，避免過度使用CPU資源
@@ -757,7 +816,6 @@ def LCD_update_timer_callback(timer):
 
 
 ############################################# 初始化 #############################################
-
 print('\n\r開始執行Data_Collection_Main初始化，版本為:', VERSION)
 print('開機秒數:', time.ticks_ms() / 1000)
 
@@ -775,8 +833,12 @@ try:
     LCD_EN = machine.Pin(27, machine.Pin.OUT)
     LCD_EN.value(1)
     spi = SPI(1, baudrate=20000000, polarity=0, phase=0, sck=Pin(14), mosi=Pin(13))
+    #test
+    print(gc.mem_free())
     gc.collect()
     utime.sleep(1)
+    #test
+    print(gc.mem_free())
     st7735 = ST7735(spi, 4, 15, None, 128, 160, rotate=0)
     st7735.initb2()
     st7735.setrgb(True)
