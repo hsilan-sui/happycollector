@@ -2,7 +2,7 @@ VERSION = "V1.07b1_sui"
 # test V1.07b1_sui  # 四 機台設定查詢:  加入抓力電壓
 # test V1.07b0_sui  # 四 機台設定查詢:  拆模組ReceivedClawData&整理模組
 
-
+micropython.mem_info()
 #標準庫
 import machine
 import binascii

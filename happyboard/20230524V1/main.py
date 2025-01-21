@@ -1,18 +1,16 @@
 # Complete project details at https://RandomNerdTutorials.com
+import micropython
+micropython.mem_info()
 
 import wifimgr
-from time import sleep
-import machine
+from utime import sleep
+#import machine
 import senko
 import os
 from dr.st7735.st7735_4bit import ST7735
-from machine import SPI, Pin
-from machine import WDT
+from machine import SPI, Pin, WDT
 import network
-
 import ntptime
-
-from machine import Pin
 from BN165DKBDriver import readKBData
 
 # 165D键盘的四根数据线对应的GPIO
@@ -27,12 +25,12 @@ try:
 except:
     import socket
 
-led = machine.Pin(2, machine.Pin.OUT)
-LCD_EN = machine.Pin(27, machine.Pin.OUT)
-keyMenu = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
-keyU = machine.Pin(36, machine.Pin.IN, machine.Pin.PULL_UP)
-keyD = machine.Pin(39, machine.Pin.IN, machine.Pin.PULL_UP)
-ESP32_TXD2_FEILOLI = machine.Pin(17, machine.Pin.IN)
+led = Pin(2, Pin.OUT)
+LCD_EN = Pin(27, Pin.OUT)
+keyMenu = Pin(0, Pin.IN, Pin.PULL_UP)
+keyU = Pin(36, Pin.IN, Pin.PULL_UP)
+keyD = Pin(39, Pin.IN, Pin.PULL_UP)
+ESP32_TXD2_FEILOLI = Pin(17, Pin.IN)
 
 gc.collect()
 print(gc.mem_free())
@@ -99,7 +97,7 @@ def UDP_Load_Wifi():
         with open('wifi.dat', "w") as f:
             f.write(data.decode('utf-8'))
         sleep(3)
-        machine.reset()
+        reset()
 
 
 if readKBData(1,CP,CE,PL,Q7)[0] == 0 :
@@ -216,7 +214,7 @@ if filename in file_list:
       if OTA.update():
           print("Updated to the latest version! Rebooting...")
           os.remove(filename)
-          machine.reset()
+          reset()
     except:
       print("Updated error! Rebooting...")
     os.remove(filename)
@@ -252,6 +250,7 @@ while True:
     print(gc.mem_free())
     try:
         print("執行Data_Collection_Main.py...")
+        micropython.mem_info()
         execfile('Data_Collection_Main.py')
     except:
         print("執行失敗，改跑Data_Collection_Main.mpy")
