@@ -4,8 +4,7 @@ VERSION = "V1.07b1_sui"
 
 micropython.mem_info()
 #標準庫
-import machine
-import binascii
+#import binascii
 import os
 import utime, time
 import gc
@@ -13,17 +12,11 @@ import _thread
 import ujson
 #外部依賴
 import network
-from machine import UART, Pin, SPI, WDT
+from machine import UART, Pin, SPI, Timer, WDT
 from umqtt.simple import MQTTClient
 #本地
 from received_claw_data import ReceivedClawData
 from dr.st7735.st7735_4bit import ST7735
-
-
-#Based on 2023/12/25_V1.07a, Sam 
-# 2024/02/22_V1.07b, Thomas 
-#  1. main.py新增開機時，如果ESP32_TXD2_FEILOLI(IO17)讀到Low，會進去UDP_Load_Wifi
-#  2. 進入UDP_Load_Wifi時，LCD會顯示等待UDP的Wifi，讓操作者知道有進入該Mode
 
 # 定義狀態類型
 class MainStatus:
@@ -215,7 +208,7 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                         f.write(''.join(data['file_list']))
                     print("otafile 輸出完成，即將重開機...")
                     time.sleep(3)
-                    machine.reset()
+                    reset()
                 else:
                     print("password failed")
         elif topic.decode() == (mq_topic + '/commands'):
@@ -755,6 +748,8 @@ def claw_check_timer_callback(timer):
             
 # 定義LCD_update計時器回調函式
 def LCD_update_timer_callback(timer):
+    import binascii
+    import machine
     if LCD_update_flag['Uniform']:
         LCD_update_flag['Uniform'] = False
         unique_id_hex = binascii.hexlify(machine.unique_id()).decode().upper()
@@ -830,7 +825,7 @@ print('2開機秒數:', time.ticks_ms() / 1000)
 
 # LCD配置
 try:
-    LCD_EN = machine.Pin(27, machine.Pin.OUT)
+    LCD_EN = Pin(27, Pin.OUT)
     LCD_EN.value(1)
     spi = SPI(1, baudrate=20000000, polarity=0, phase=0, sck=Pin(14), mosi=Pin(13))
     #test
@@ -849,7 +844,7 @@ try:
     dis = display(st7735, 'ST7735_FB', color.WHITE, color.BLUE)
 except:
     print('st7735 Error')
-    machine.reset()
+    reset()
 
 LCD_update_flag = {
     'Uniform': True,
@@ -871,23 +866,23 @@ claw_1 = ReceivedClawData()
 mq_client_1 = None
 
 # UART配置
-uart_FEILOLI = machine.UART(2, baudrate=19200, tx=17, rx=16)
+uart_FEILOLI = UART(2, baudrate=19200, tx=17, rx=16)
 
 # 創建計時器物件
-server_report_timer = machine.Timer(0)
-claw_check_timer = machine.Timer(1)
-LCD_update_timer = machine.Timer(2)
+server_report_timer = Timer(0)
+claw_check_timer = Timer(1)
+LCD_update_timer = Timer(2)
 
 # 建立並執行uart_FEILOLI_recive_packet_task
 _thread.start_new_thread(uart_FEILOLI_recive_packet_task, ())
 
 # 設定server_report計時器的間隔和回調函式
 TIMER_INTERVAL = 1000  # 設定1秒鐘 = 1000（單位：毫秒）
-server_report_timer.init(period=TIMER_INTERVAL, mode=machine.Timer.PERIODIC, callback=server_report_timer_callback)
+server_report_timer.init(period=TIMER_INTERVAL, mode=Timer.PERIODIC, callback=server_report_timer_callback)
 TIMER_INTERVAL = 10 * 1000  # 設定10秒鐘 = 10*1000（單位：毫秒）
-claw_check_timer.init(period=TIMER_INTERVAL, mode=machine.Timer.PERIODIC, callback=claw_check_timer_callback)
+claw_check_timer.init(period=TIMER_INTERVAL, mode=Timer.PERIODIC, callback=claw_check_timer_callback)
 TIMER_INTERVAL = 1000  # 設定1秒鐘 = 10*1000（單位：毫秒）
-LCD_update_timer.init(period=TIMER_INTERVAL, mode=machine.Timer.PERIODIC, callback=LCD_update_timer_callback)
+LCD_update_timer.init(period=TIMER_INTERVAL, mode=Timer.PERIODIC, callback=LCD_update_timer_callback)
 
 last_time = 0
 main_while_delay_seconds = 1
