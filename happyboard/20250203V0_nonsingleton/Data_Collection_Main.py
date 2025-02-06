@@ -1,5 +1,17 @@
-VERSION = "V1.07b3_sui"
-
+VERSION = "V1.07b4_sui"
+# [待整合]: Data_Collection_Main.py還是需要繼續優化記憶體 接下來繼續新增功能 仍然會容易出現memory error (這就是micropython.mem_info()所顯示出的max free size有關)
+## 雖然透過gc.collect()可以將一些記憶體釋出,但是當全域變數所佔用的記憶體是{連續一整塊的max free size},這種最大連續內存是很難從gc釋出全部 ---> 內存碎片化的意思<--- 
+#--------------------------------------------------------
+# test V1.07b4a_sui  # 將mqtt中publish_mqtt_clawdata拆解為mqtt_helper.py
+# -----------------------------------------------------
+# test V1.07b4_sui 不使用單例模式 st7735 模組
+#--------------------------------------------------------
+# test V1.07b3_sui  # 將ST7735模組抽離lcd_manager為單例模式/唯一實例x 可在考慮是否要使用
+#--------------------------------------------------------
+# test V1.07b2_sui  # 四 機台設定查詢:  加入抓力電壓 
+# test V1.07b2_sui  # 四 機台設定查詢:  拆模組ReceivedClawData&整理模組
+# test V1.07b1_sui  # 啟動遊戲:更改了startoncegame的參數 可以透過mqtt從遠端發送ep:1-40 FP(Giftplaytimes):1-10的數值
+# test V1.07b0_sui  # 遠端帳目查詢與清除:一鍵清除sales內容 or 單一清除
 import micropython
 micropython.mem_info()
 #標準庫
@@ -120,13 +132,12 @@ def load_token():
             utime.sleep(30)
 
 
-#這裡移到工具函式(utils.py)
-# def get_wifi_signal_strength(wlan):
-#     if wlan.isconnected():
-#         signal_strength = wlan.status('rssi')
-#         return signal_strength
-#     else:
-#         return None
+def get_wifi_signal_strength(wlan):
+    if wlan.isconnected():
+        signal_strength = wlan.status('rssi')
+        return signal_strength
+    else:
+        return None
 
 
 def connect_wifi():
@@ -186,8 +197,14 @@ def connect_mqtt():
                 print("倒數{}秒後重新連線MQTT Broker".format(i))
                 utime.sleep(1)
 
-# 寫法subscribe_MQTT_claw_recive_callback(topic, message)
+
+#優化後的寫法subscribe_MQTT_claw_recive_callback(topic, message)
+# 這個主函式一樣在Data_Collection_Main.py
 def subscribe_MQTT_claw_recive_callback(topic, message):
+    """
+    MQTT Subscribe 回調函式。
+    處理接收到的 topic 和 message，並調用對應的邏輯。
+    """
     print("MQTT Subscribe recive data")
     print("MQTT Subscribe topic:", topic)
     print("MQTT Subscribe data(JSON_str):", message)
@@ -202,23 +219,25 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
         mq_topic_prefix = f"{macid}/{token}"
 
         # 分派邏輯
-        ## /fota
         if topic.decode() == f"{mq_topic_prefix}/fota":
             from mqtt_helper import process_fota
             process_fota(data, publish_MQTT_claw_data, claw_1)
 
-        ## /commands
+        #這裡要處理的傳入參數比較多
         elif topic.decode() == f"{mq_topic_prefix}/commands":
             from mqtt_helper import process_commands
             process_commands(data, publish_MQTT_claw_data, uart_FEILOLI_send_packet, claw_1, KindFEILOLIcmd)
         else:
             print(f"Unknown topic received: {topic.decode()}")
+
     except ValueError as ve:
         print(f"JSON decode error: {ve}")
     except Exception as e:
         print(f"Error in MQTT callback: {e}")
-#　改寫法(減少if -else嵌套)subscribe_MQTT_claw_recive_callback(topic, message)
 
+
+
+# 待優化的寫法subscribe_MQTT_claw_recive_callback(topic, message)
 # def subscribe_MQTT_claw_recive_callback(topic, message):
 #     print("MQTT Subscribe recive data")
 #     print("MQTT Subscribe topic:", topic)
@@ -308,25 +327,15 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
 #     except Exception as e:
 #         print("MQTT Subscribe data to JSON Error:", e)
 
-
 def subscribe_MQTT_claw_topic():  # MQTT_client暫時固定為mq_client_1
-    # 設定接收MQTT訊息的回呼函式.set_callback(fn_CALLBACK)
-    # ==>有新訊息時 會自動執行這個 callback執行這個 callback
     mq_client_1.set_callback(subscribe_MQTT_claw_recive_callback)
-
     macid = my_internet_data.mac_address
-
-    # 訂閱 commands 主題(並建議盡量使用f-string)
-    commands_topic = f"{macid}/{token}/commands"
-    #mq_topic = macid + '/' + token + '/commands'
-    mq_client_1.subscribe(commands_topic)
-    print("MQTT Subscribe topic:", commands_topic)
-
-    # 訂閱fota 主題
-    fota_topic = f"{macid}/{token}/fota"
-    #mq_topic = macid + '/' + token + '/fota'
-    mq_client_1.subscribe(fota_topic)
-    print("MQTT Subscribe topic:", fota_topic)
+    mq_topic = macid + '/' + token + '/commands'
+    mq_client_1.subscribe(mq_topic)
+    print("MQTT Subscribe topic:", mq_topic)
+    mq_topic = macid + '/' + token + '/fota'
+    mq_client_1.subscribe(mq_topic)
+    print("MQTT Subscribe topic:", mq_topic)
 
 def publish_data(mq_client, topic, data):
     try:
@@ -348,62 +357,57 @@ def get_file_info(filename):
     except OSError:
         return None, None
 
-
-# 寫法publish_MQTT_claw_data
-## global wifi, version
-##　note: macid, token, my_internet_data.mac_address
+# 優化後的寫法publish_MQTT_claw_data
 def publish_MQTT_claw_data(claw_1, MQTT_API_select, para1=""):
-    # 根據 MQTT_API_select 執行不同的MQTT發佈
-    global wifi, VERSION
+    """
+    根據 MQTT_API_select 執行不同的 MQTT 發布邏輯。
+    """
+    global wifi,VERSION
     macid = my_internet_data.mac_address
     mq_topic = f"{macid}/{token}/{MQTT_API_select}"
 
-    # data會佔用內存，改用透過api分流比對條件再調用工具函式讀取娃娃機的數值 (函式統一放在mqtt_helper.py)
-    # sales 銷售數值 (工具函式:build_sales_data)
+    # 使用 mqtt_helper 中的函數生成對應的數據
     if MQTT_API_select == "sales":
         from mqtt_helper import build_sales_data
         MQTT_claw_data = build_sales_data(claw_1)
-    # 小卡連線強度(rssi) ==> 待測試
-    elif MQTT_API_select == "status":
+
+    elif MQTT_API_select == "status":#沒效果
         from mqtt_helper import build_status_data
-        from utils import get_wifi_signal_strength # 待測試
         # 需要將 WiFi 的 RSSI 信號作為參數傳入
         wifi_signal = get_wifi_signal_strength(wifi)
         MQTT_claw_data = build_status_data(claw_1, wifi_signal)
-    # 以下都是commandack 與commandack-開頭的API
-    ## 先比對完整API字串(嚴謹的比對)
+    # 嚴謹得API比對
     elif MQTT_API_select == "commandack-clawmachinesetting":
         from mqtt_helper import build_clawmachinesetting_data
         MQTT_claw_data = build_clawmachinesetting_data(claw_1, para1)
-    #
-    elif MQTT_API_select == "commandack-fileinfo": # 待測試
+    # 嚴謹得API比對
+    elif MQTT_API_select == "commandack-fileinfo":
         from mqtt_helper import build_fileinfo_data
         MQTT_claw_data = build_fileinfo_data(para1)
-
-    elif MQTT_API_select == "commandack-fileremove": # 待測試
+    # 嚴謹得API比對
+    elif MQTT_API_select == "commandack-fileremove":
         from mqtt_helper import build_fileremove_data
         MQTT_claw_data = build_fileremove_data(para1)
-    
+    # 寬鬆的API比對
     elif MQTT_API_select.startswith("commandack"):
         from mqtt_helper import handle_ack_with_state
         MQTT_claw_data = handle_ack_with_state(MQTT_API_select, para1, version=VERSION)
+
     else:
         print(f"未處理的 MQTT_API_select: {MQTT_API_select}")
         return  # 結束函式執行
-    
-    # 發佈資料到MQTT
+
+    # 發布資料到 MQTT
     if MQTT_claw_data:
         mq_json_str = ujson.dumps(MQTT_claw_data)
-
         try:
             publish_data(mq_client_1, mq_topic, mq_json_str)
-            # 清掉dict data
-            MQTT_claw_data.clear()
-            gc.collect()
+            MQTT_claw_data.clear()  # 清除字典節省內存
+            gc.collect()  # 強制執行垃圾回收
         except Exception as e:
-            print(f"MQTT發佈失敗: {e}")
+            print(f"MQTT 發布失敗: {e}")
 
-#　減少if-else嵌套 
+# 待優化的寫法publish_MQTT_claw_data
 # def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選擇claw_1、claw_2、...，但MQTT_client暫時固定為mq_client_1
 #     global wifi
 #     if MQTT_API_select == 'sales':
@@ -645,8 +649,6 @@ clawsettingdict = {
     "Motorspeed": 0x04,
 }
 
-
-#　uart功能待優化
 def uart_FEILOLI_send_packet(FEILOLI_cmd, new_parameters=None):
     global FEILOLI_packet_id, clawsettingdict
     FEILOLI_packet_id = (FEILOLI_packet_id + 1) % 256
@@ -733,7 +735,6 @@ def uart_FEILOLI_send_packet(FEILOLI_cmd, new_parameters=None):
 uart_FEILOLI_rx_queue = []
 
 # 從佇列中讀取資料的任務
-# global claw_1, uart_FEILOLI, clawsettingdict
 def uart_FEILOLI_recive_packet_task():
     global claw_1, uart_FEILOLI, clawsettingdict
     while True:
@@ -880,7 +881,8 @@ def claw_check_timer_callback(timer):
             print("Updating 娃娃機 機台狀態 ...")
             uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Machine_status)
             
-# 定義LCD_update計時器回調函式
+
+
 # 定義LCD_update計時器回調函式
 def LCD_update_timer_callback(timer):
     import binascii
@@ -888,54 +890,48 @@ def LCD_update_timer_callback(timer):
     if LCD_update_flag['Uniform']:
         LCD_update_flag['Uniform'] = False
         unique_id_hex = binascii.hexlify(machine.unique_id()).decode().upper()
-
-        # 清空屏幕並繪製基本資訊
-        lcd_mgr.fill()  # 使用黑色清空整個畫面
-
-        lcd_mgr.draw_text(0, 0, text='Happy Collector', bg=lcd_mgr.color.BLUE, bgmode=-1)
-
-        lcd_mgr.draw_text(5, 8 * 16 + 5, text=unique_id_hex, fg=lcd_mgr.color.RED, bg=lcd_mgr.color.WHITE,bgmode=-1, scale=1.3)
-
-
-        lcd_mgr.draw_text(0, 1 * 16, text='IN:--------', fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLACK, bgmode=-1)
-        lcd_mgr.draw_text(0, 2 * 16, text='OUT:--------')
-        lcd_mgr.draw_text(0, 3 * 16, text='EP:--------')
-        lcd_mgr.draw_text(0, 4 * 16, text='GP:--------')
-        lcd_mgr.draw_text(0, 5 * 16, text='ST:--')
-        lcd_mgr.draw_text(0, 6 * 16, text='Time:mm/dd hh:mm')
-        lcd_mgr.draw_text(0, 7 * 16, text='Wifi:-----')
-        
+        dis.fill(color.BLACK)
+        dis.draw_text(spleen16, 'Happy Collector', 0, 0, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
+        dis.fgcolor = color.RED     # 设置前景颜色为紅色
+        dis.bgcolor = color.WHITE   # 设置背景颜色为黑色
+        dis.draw_text(spleen16, unique_id_hex, 5, 8 * 16 + 5, 1.3, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) 
+        dis.dev.show()
+        dis.fgcolor = color.WHITE   # 设置前景颜色为白色
+        dis.bgcolor = color.BLACK   # 设置背景颜色为黑色
+        dis.draw_text(spleen16, 'IN:--------', 0, 1 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'OUT:--------', 0, 2 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'EP:--------', 0, 3 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'FP:--------', 0, 4 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'ST:--', 0, 5 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'Time:mm/dd hh:mm', 0, 6 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'Wifi:-----', 0, 7 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0) 
+        # dis.dev.show()
     elif LCD_update_flag['WiFi']:
         LCD_update_flag['WiFi'] = False
         if now_main_state.state == MainStatus.NONE_WIFI or now_main_state.state == MainStatus.NONE_INTERNET:
-            #顯示wifi和MQTT狀態
-            lcd_mgr.draw_text(5*8, 7*16, text='dis  ',fg=lcd_mgr.color.RED, bg=lcd_mgr.color.BLACK, bgmode=-1)
+            dis.draw_text(spleen16, 'dis  ', 5 * 8, 7 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示wifi和MQTT狀態
         elif now_main_state.state == MainStatus.NONE_MQTT:
-            #顯示wifi和MQTT狀態
-            lcd_mgr.draw_text(5*8, 7*16, text='error',fg=lcd_mgr.color.RED, bg=lcd_mgr.color.BLACK, bgmode=-1)
+            dis.draw_text(spleen16, 'error', 5 * 8, 7 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示wifi和MQTT狀態
         elif now_main_state.state == MainStatus.NONE_FEILOLI or now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
-             #顯示wifi和MQTT狀態
-            lcd_mgr.draw_text(5*8, 7*16, text='ok   ',fg=lcd_mgr.color.GREEN, bg=lcd_mgr.color.BLACK, bgmode=-1)
-
+            dis.draw_text(spleen16, 'ok   ', 5 * 8, 7 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示wifi和MQTT狀態
+        # dis.dev.show()
     elif LCD_update_flag['Claw_State']:
         LCD_update_flag['Claw_State'] = False  
         if now_main_state.state == MainStatus.NONE_FEILOLI :
-            lcd_mgr.draw_text(3 * 8, 5 * 16, text="%02d" % 99)   
-             #顯示娃娃機狀態
+            dis.draw_text(spleen16,  "%02d" % 99, 3 * 8, 5 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示娃娃機狀態
         elif now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
-            lcd_mgr.draw_text(3 * 8, 5 * 16, text="%02d" % claw_1.Error_Code_of_Machine)
-            #顯示娃娃機狀態
+            dis.draw_text(spleen16,  "%02d" % claw_1.Error_Code_of_Machine, 3 * 8, 5 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示娃娃機狀態
         else:
-            lcd_mgr.draw_text(3 * 8, 5 * 16, text="--")
-
+            dis.draw_text(spleen16,  "--", 3 * 8, 5 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示娃娃機狀態
+        # dis.dev.show()
     elif LCD_update_flag['Claw_Value']:
         LCD_update_flag['Claw_Value'] = False
         if now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
-            lcd_mgr.draw_text(3 * 8, 1 * 16, text="%-8d" % claw_1.Number_of_Coin, fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLACK, bgmode=-1)
-            lcd_mgr.draw_text(4 * 8, 2 * 16, text="%-8d" % claw_1.Number_of_Award, fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLACK, bgmode=-1)
-            lcd_mgr.draw_text(3 * 8, 3 * 16, text="%-8d" % claw_1.Number_of_Original_Payment, fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLACK, bgmode=-1)
-            lcd_mgr.draw_text(3 * 8, 4 * 16, text="%-8d" % claw_1.Number_of_Gift_Payment, fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLACK, bgmode=-1)
-
+            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Coin, 3 * 8, 1 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
+            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Award, 4 * 8, 2 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
+            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Original_Payment, 3 * 8, 3 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
+            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Gift_Payment, 3 * 8, 4 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
+        # dis.dev.show()
     elif (LCD_update_flag['Time']):
         LCD_update_flag['Time'] = False  
         # 获取当前时间戳
@@ -944,10 +940,8 @@ def LCD_update_timer_callback(timer):
         local_time = utime.localtime(timestamp)
         # 格式化为 "mm/dd hh:mm" 格式的字符串
         formatted_time = "{:02d}/{:02d} {:02d}:{:02d}".format(local_time[1], local_time[2], local_time[3], local_time[4])
-        lcd_mgr.draw_text(5 * 8, 6 * 16, text=formatted_time,fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLACK, bgmode=-1)
-        #顯示時間
-    lcd_mgr.show()
-    gc.collect()
+        dis.draw_text(spleen16,  formatted_time, 5 * 8, 6 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)    #顯示時間
+    dis.dev.show()
 
 
 ############################################# 初始化 #############################################
@@ -963,14 +957,6 @@ wdt=WDT(timeout=1000*60*10)
 
 print('2開機秒數:', utime.ticks_ms() / 1000)
 
-# lcd 全域單例化 不需要再配置
-# # LCD配置
-# try:
-#     lcd_mgr = LCDManager.get_instance()
-#     print(lcd_mgr)
-# except Exception as e:
-#     print('st7735 Error')
-#     reset()
 
 LCD_update_flag = {
     'Uniform': True,

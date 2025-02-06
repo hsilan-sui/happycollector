@@ -1,5 +1,4 @@
 # Complete project details at https://RandomNerdTutorials.com
-#測試記憶體內存
 import micropython
 micropython.mem_info()
 
@@ -8,13 +7,11 @@ from utime import sleep
 #import machine
 import senko
 import os
-#from dr.st7735.st7735_4bit import ST7735
+from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin, WDT
 import network
 import ntptime
 from BN165DKBDriver import readKBData
-#　lcd 模組
-from lcd_manager import LCDManager
 # 165D键盘的四根数据线对应的GPIO
 CP = Pin(0, Pin.OUT)
 CE = Pin(0, Pin.OUT)
@@ -23,37 +20,56 @@ Q7 = Pin(33, Pin.IN)
  
 
 #led = Pin(2, Pin.OUT)
-LCD_EN = Pin(27, Pin.OUT, value=1)#第三個參數是預設輸出電 #LCD_EN.value(1)
-# keyMenu = Pin(0, Pin.IN, Pin.PULL_UP) #尚未使用先comment掉
+LCD_EN = Pin(27, Pin.OUT, value=1)#第三個參數是預設輸出電位 #LCD_EN.value(1)
+# keyMenu = Pin(0, Pin.IN, Pin.PULL_UP)
 # keyU = Pin(36, Pin.IN, Pin.PULL_UP)
 # keyD = Pin(39, Pin.IN, Pin.PULL_UP)
 ESP32_TXD2_FEILOLI = Pin(17, Pin.IN)
 
-# 把st7735所有相關的模組都寫在lcd_manager
-# 獲取 LCD 單例singleton
-lcd_mgr = LCDManager.get_instance() 
-# LCD單例初始化
-lcd_mgr.initialize()
+spi = SPI(1, baudrate=20000000, polarity=0, phase=0, sck=Pin(14), mosi=Pin(13))
+st7735 = ST7735(spi, 4, 15, None, 128, 160, rotate=0)
+st7735.initb2()
+st7735.setrgb(True)
 
-lcd_mgr.fill()  # 使用預設顏色（黑色）
-# 繪製文字
-lcd_mgr.draw_text(0, 0, fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLUE, bgmode=-1) 
-#bgmode預設是0 ==>使用預設的bgcolor 例如:.fill()所指定的
-#bgmode預設是-1 ==>使用當前參數所指定的bgcolor bg=lcd_mgr.color.BLUE
+from gui.colors import colors
 
-lcd_mgr.show()
+color = colors(st7735)
+
+from dr.display import display
+
+import fonts.spleen16 as spleen16
+
+dis = display(st7735, 'ST7735_FB', color.WHITE, color.BLUE)
+dis.fill(color.BLACK)
+dis.draw_text(spleen16, 'Happy Collector', 0, 0, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
+
+dis.dev.show()
+
 gc.collect()
 print(gc.mem_free())
+# from lcd_manager import LCDManager
+# # 獲取 LCD 單例並初始化
+# lcd_mgr = LCDManager.get_instance()
+# lcd_mgr.initialize()
+
+# lcd_mgr.fill()  # 使用預設顏色（黑色）
+# # 繪製文字
+# lcd_mgr.draw_text(0, 0, fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLUE, bgmode=-1) 
+# #bgmode預設是0 ==>使用預設的bgcolor 例如:.fill()所指定的
+# #bgmode預設是-1 ==>使用當前參數所指定的bgcolor bg=lcd_mgr.color.BLUE
+# lcd_mgr.show()
+# gc.collect()
+# print(gc.mem_free())
 
 
-#　待優化為工具函式
+
 def UDP_Load_Wifi():
     try:
         import usocket as socket
     except:
         import socket
-    lcd_mgr.draw_text(0, 16,text='wait UDP Wi-Fi.', fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLACK, bgmode=-1) 
-    lcd_mgr.show()
+    dis.draw_text(spleen16, 'wait UDP Wi-Fi.', 0, 16*1, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.dev.show()
     # Connect to Wi-Fi
     wifi_ssid = "Sam"
     wifi_password = "0928666624"
@@ -67,24 +83,24 @@ def UDP_Load_Wifi():
 
     print("Connected to Wi-Fi")
     print('\nConnected. Network config: ', station.ifconfig())
-    lcd_mgr.draw_text(0, 32, text='UDP Wi-Fi OK')
-    lcd_mgr.draw_text(0, 48, text='IP:') 
-    lcd_mgr.draw_text(3, 64, text=station.ifconfig()[0]) 
-    lcd_mgr.show()
+    dis.draw_text(spleen16, 'UDP Wi-Fi OK', 0, 16*2, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.draw_text(spleen16, 'IP:', 0, 16*3, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.draw_text(spleen16, station.ifconfig()[0], 3, 16*4, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.dev.show()
 
     # Set up UDP socket
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_socket.bind(("0.0.0.0", 1234))
 
     print("Listening for UDP messages on port 1234")
-    lcd_mgr.draw_text(0, 80, text='wait UDP...')
-    lcd_mgr.show()
+    dis.draw_text(spleen16, "wait UDP...", 0, 16*5, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.dev.show()
 
     while True:
         data, addr = udp_socket.recvfrom(1024)
         print("Received message: {}".format(data.decode('utf-8')))
-        lcd_mgr.draw_text(0, 96,text=data.decode('utf-8'))
-        lcd_mgr.show()
+        dis.draw_text(spleen16, data.decode('utf-8'), 0, 16*6, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.dev.show()
         with open('wifi.dat', "w") as f:
             f.write(data.decode('utf-8'))
         sleep(3)
@@ -98,16 +114,15 @@ elif ESP32_TXD2_FEILOLI.value() == 0 :
     print("ESP32_TXD2_FEILOLI被拉Low，進入UDP load wifi")
     UDP_Load_Wifi()
 
-#　這裡有重複待優化(移到utils.py)
-# def get_wifi_signal_strength(wlan):
-#     if wlan.isconnected():
-#         signal_strength = wlan.status('rssi')
-#         return signal_strength
-#     else:
-#         print("請確認WiFi 未連接，無法檢測信號強度。")
-#         return None
 
-sleep(3)
+def get_wifi_signal_strength(wlan):
+    if wlan.isconnected():
+        signal_strength = wlan.status('rssi')
+        return signal_strength
+    else:
+        return None
+
+sleep(2)
 wdt=WDT(timeout=1000*60*5) 
 
 wlan = wifimgr.get_connection()
@@ -116,7 +131,7 @@ if wlan is None:
     while True:
         pass  # you shall not pass :D
 
-from utils import get_wifi_signal_strength
+
 signal_strength = get_wifi_signal_strength(wlan)
 if signal_strength is not None:
     print("WiFi Signal Strength:", signal_strength, "dBm")
@@ -126,15 +141,13 @@ else:
 # Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
 print("ESP OK")
 
-lcd_mgr.draw_text(0 , 16, text='SSID:')
+dis.draw_text(spleen16, 'SSID:', 0, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+dis.draw_text(spleen16, wlan.config('essid'), 5 * 8, 16, 1, dis.fgcolor, dis.bgcolor, 0, )
 
-lcd_mgr.draw_text(5 * 8 , 16, text=wlan.config('essid'))
+dis.draw_text(spleen16, wlan.ifconfig()[0], 0, 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
 
-lcd_mgr.draw_text(0 , 16 * 2, text=wlan.ifconfig()[0])
+dis.dev.show()
 
-lcd_mgr.show()
-
-# 時間RTC(處理有時連不上的問題)
 def tw_ntp(host='clock.stdtime.gov.tw', must=False):
   """
   host: 台灣可用的 ntp server 如下可任選，未指定預設為 clock.stdtime.gov.tw
@@ -172,8 +185,8 @@ print(file_list)
 if filename in file_list:
     # 在這邊要做讀取OTA列表，然後進行OTA的執行
     print("OTA檔案存在")
-    lcd_mgr.draw_text(0 , 16 * 3, text="OTAing...")
-    lcd_mgr.show()
+    dis.draw_text(spleen16, "OTAing...", 0, 16 + 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.dev.show()
 
     try:
       with open(filename) as f:
@@ -200,16 +213,16 @@ if filename in file_list:
       print("Updated error! Rebooting...")
     os.remove(filename)
 else:
-    lcd_mgr.draw_text(0, 16 * 3 ,text="No OTA")
-    lcd_mgr.show()
+    dis.draw_text(spleen16, "No OTA", 0, 16 + 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.dev.show()
     print("OTA檔案不存在")
 
 print("ESP OTA OK")
 
 while True:
     for i in range(3, 0, -1):
-        lcd_mgr.draw_text(0, 16 * 3, text=f"CountDown...{str(i)}",bg=lcd_mgr.color.BLACK, bgmode=-1)
-        lcd_mgr.show()
+        dis.draw_text(spleen16, "CountDown..." + str(i), 0, 16 + 16 + 16, 1, dis.fgcolor, color.BLACK, -1, True, 0, 0)
+        dis.dev.show()
         sleep(1)
 
     gc.collect()
@@ -217,7 +230,7 @@ while True:
         print("執行Data_Collection_Main.py...")
         micropython.mem_info()
         execfile('Data_Collection_Main.py')
-    except Exception as e:
-        print("執行失敗，改跑Data_Collection_Main.mpy", e)
-        __import__('Data_Collection_Main.mpy')          
+    except:
+        print("執行失敗，改跑Data_Collection_Main.mpy")
+        __import__('Data_Collection_Main.mpy')     
 

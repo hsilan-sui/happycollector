@@ -1,71 +1,74 @@
-import network # 配置WiFi接口
+import network
 import socket
 import ure
-import utime
+import time
 import binascii
 import machine
 import random
 
-## AP 基地台(我手機分享網路的概念)
-## STA 工作站(我現在筆電的概念)
-## AP+STA
-
-# 透過 machine.unique_id() 獲取硬體唯一 ID，並組合成一個獨特的 SSID 和 DHCP 名稱
 unique_id_hex = binascii.hexlify(machine.unique_id()[-3:]).decode().upper()
 ap_ssid = "HappyWifi" + unique_id_hex
 ap_password = "happywifi"
 
 DHCP_NAME = "Happy_" + unique_id_hex
 
+# ap_ssid = "WifiManager"
+# ap_password = "tayfunulu"
 ap_authmode = 3  # WPA2
 
 NETWORK_PROFILES = 'wifi.dat'
 
-# 1.network.WLAN()建立網路連線的對象 (配置WiFi街口)
-# #預設是network.STA_IF 用戶端
-## 參數支援:network.AP_IF 以及 network.STA_IF 用戶端
 wlan_ap = network.WLAN(network.AP_IF)
 wlan_sta = network.WLAN(network.STA_IF)
 
-# 2. 使用.active()啟動上述所配置的接口
-# 3. 使用.connect(ssid, pwd)建立連線
-# 4. ifconfig()顯示連線的ip位置(ip,子網路遮罩,閘道,DNS伺服器)
 server_socket = None
 
-# 自動連線Wi-Fi
-def get_connection():
-    """嘗試連接已知 Wi-Fi，若失敗則啟用 AP 模式"""
 
-    # 確認network.STA_IF 用戶端是否存在
+def get_connection():
+    """return a working WLAN(STA_IF) instance or None"""
+
+    # First check if there already is any connection:
     if wlan_sta.isconnected():
         return wlan_sta
 
     connected = False
-    max_retries = 999999 
+    max_retries = 999999  # Maximum number of connection retries
     retry_delay_range = (5, 15)  # Range of delay in seconds between retries
 
     for _ in range(max_retries):
         try:
             # ESP connecting to WiFi takes time, wait a bit before retrying:
-            utime.sleep(random.randint(*retry_delay_range))
+            time.sleep(random.randint(*retry_delay_range))
             
-            # 確認network.WLAN(network.STA_IF)建立網路連線的對象 (配置WiFi接口)是否已存在
+            # Check if already connected after the wait
             if wlan_sta.isconnected():
-                connected = True # 旗標
+                connected = True
                 break
             
-            # 從檔案讀取已知的 Wi-Fi 設定
+            # Read known network profiles from file
             profiles = read_profiles()
+            
+            # print(profiles)
 
-            # 2. 使用.active()啟動上述所配置的接口
+            # Search WiFis in range
             wlan_sta.active(True)
-            # 掃描周遭可用的wifi
             networks = wlan_sta.scan()
-            #存入物件裡 
-        # {propsky: wifi.dat的pas, 
-        #   name: propsky}
-       # profiles[ssid] = password
-        #profiles["name"] = ssid
+
+#             AUTHMODE = {0: "open", 1: "WEP", 2: "WPA-PSK", 3: "WPA2-PSK", 4: "WPA/WPA2-PSK"}
+#             for ssid, bssid, channel, rssi, authmode, hidden in sorted(networks, key=lambda x: x[3], reverse=True):
+#                 ssid = ssid.decode('utf-8')
+#                 encrypted = authmode > 0
+#                 # print("ssid: %s chan: %d rssi: %d authmode: %s" % (ssid, channel, rssi, AUTHMODE.get(authmode, '?')))
+#                 if encrypted:
+#                     if ssid in profiles:
+#                         password = profiles[ssid]
+#                         connected = do_connect(ssid, password)
+#                     else:
+#                         print("skipping unknown encrypted network")
+#                 else:  # open
+#                     connected = do_connect(ssid, None)
+#                 if connected:
+#                     break
             connected = do_connect(profiles["name"], profiles[profiles["name"]])
 
         except OSError as e:
@@ -82,23 +85,17 @@ def get_connection():
 
     return wlan_sta if connected else None
 
-#讀取wifi設定:從本地檔案讀取 SSID 和密碼，返回一個字典
 def read_profiles():
-    #TWORK_PROFILES => 'wifi.dat'
     with open(NETWORK_PROFILES) as f:
         lines = f.readlines()
     profiles = {}
     for line in lines:
-        # 從wifi.dat讀取 ssid;password
         ssid, password = line.strip("\n").split(";")
-        #存入物件裡 
-        # {propsky: wifi.dat的pas, 
-        #   name: propsky}
         profiles[ssid] = password
         profiles["name"] = ssid
     return profiles
 
-#寫入wifi設定:將新的 Wi-Fi 設定寫入檔案
+
 def write_profiles(profiles):
     lines = []
     for ssid, password in profiles.items():
@@ -118,7 +115,7 @@ def do_connect(ssid, password):
         connected = wlan_sta.isconnected()
         if connected:
             break
-        utime.sleep(0.1)
+        time.sleep(0.1)
         print('.', end='')
     if connected:
         print('\nConnected. Network config: ', wlan_sta.ifconfig())
@@ -217,7 +214,7 @@ def handle_configure(client, request):
             </html>
         """ % dict(ssid=ssid)
         send_response(client, response)
-        utime.sleep(1)
+        time.sleep(1)
         wlan_ap.active(False)
         try:
             profiles = read_profiles()
@@ -226,7 +223,7 @@ def handle_configure(client, request):
         profiles[ssid] = password
         write_profiles(profiles)
 
-        utime.sleep(5)
+        time.sleep(5)
 
         return True
     else:
@@ -260,7 +257,7 @@ def stop():
         server_socket.close()
         server_socket = None
 
-# 啟用 AP 模式
+
 def start(port=80):
     global server_socket
 
