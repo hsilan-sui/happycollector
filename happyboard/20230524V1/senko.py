@@ -54,7 +54,7 @@ class Senko:
         changes = []
 
         for file in self.files:
-            while(gc.mem_free()<60000):
+            while(gc.mem_free()<60000): # 會在這裡無限重啟 因為gc容量小於6000
                 gc.collect()
                 print(gc.mem_free())
                 sleep(1)
@@ -75,16 +75,16 @@ class Senko:
 
         return changes
 
-    def fetch(self):
-        """Check if newer version is available.
+    # def fetch(self): # 沒有使用
+    #     """Check if newer version is available.
 
-        Returns:
-            True - if is, False - if not.
-        """
-        if not self._check_all():
-            return False
-        else:
-            return True
+    #     Returns:
+    #         True - if is, False - if not.
+    #     """
+    #     if not self._check_all():
+    #         return False
+    #     else:
+    #         return True
 
     def update(self):
         """Replace all changed files with newer one.
