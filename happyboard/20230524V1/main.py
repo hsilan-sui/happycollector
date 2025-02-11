@@ -13,6 +13,7 @@ from machine import SPI, Pin, WDT
 import network
 import ntptime
 from BN165DKBDriver import readKBData
+import machine
 #　lcd 模組
 from lcd_manager import LCDManager
 # 165D键盘的四根数据线对应的GPIO
@@ -88,7 +89,7 @@ def UDP_Load_Wifi():
         with open('wifi.dat', "w") as f:
             f.write(data.decode('utf-8'))
         sleep(3)
-        reset()
+        machine.reset()
 
 
 if readKBData(1,CP,CE,PL,Q7)[0] == 0 :
@@ -206,15 +207,19 @@ if filename in file_list:
     print("OTA檔案存在")
     lcd_mgr.draw_text(0 , 16 * 3, text="OTAing...")
     lcd_mgr.show()
-
+    #debug test
+    print("hi ota prepare")
     try:
+      print("hi ota prepare2")
       with open(filename) as f:
           lines = f.readlines()[0].strip()
+          print(f"hi ota prepare3 {lines}")
 
       lines = lines.replace(' ', '')
-
+      print(f"hi ota prepare4 {lines}")
       # 移除字串中的雙引號和空格，然後使用逗號分隔字串
       file_list = [file.strip('"') for file in lines.split(',')]
+      print(f"hi ota prepare5 {file_list}")
       OTA = senko.Senko(
           user="hsilan-sui",  # Required
           repo="happycollector",  # Required
@@ -230,11 +235,11 @@ if filename in file_list:
     #       files=file_list
     #   )
      
-
+      print(f"hi ota prepare6 {file_list}")
       if OTA.update():
           print("Updated to the latest version! Rebooting...")
           os.remove(filename)
-          reset()
+          machine.reset()
     except:
       print("Updated error! Rebooting...")
     os.remove(filename)
