@@ -1,6 +1,7 @@
 import utime
 from utils import get_wifi_signal_strength, get_file_info
 
+
 ##### 這裡跟subscribe_MQTT_claw_recive_callback 回調函式有關的
 
 # 回調訂閱/fota
@@ -14,7 +15,8 @@ def process_fota(data, publish_func, claw):
                     f.write(''.join(data['file_list']))
                 print("FOTA file saved. Rebooting...")
                 utime.sleep(3)
-                reset()
+                import machine
+                machine.reset()
             else:
                 print("Invalid FOTA password")
         else:
@@ -148,7 +150,11 @@ def build_sales_data(claw_data):
 
 # /status => build_status_data(claw_data, wifi_signal_strength)
 def build_status_data(claw_data, wifi_signal_strength):
-    claw_data.Error_Code_of_Machine if claw_data else 99
+    status_code = 0  # 預設狀態碼
+    if claw_data is None:
+        status_code = 99  # 設定異常狀態碼
+    elif claw_data.Error_Code_of_Machine != 0x00:
+        status_code = claw_data.Error_Code_of_Machine
     return {
         "status": f"{status_code:02d}",
         "wifirssi": wifi_signal_strength,

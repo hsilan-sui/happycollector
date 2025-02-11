@@ -134,31 +134,63 @@ lcd_mgr.draw_text(0 , 16 * 2, text=wlan.ifconfig()[0])
 
 lcd_mgr.show()
 
+# 增加多個NTP伺服器選項(失敗就會跳下一個嘗試)
+def tw_ntp(must=False):
+    ntp_servers = [
+        "clock.stdtime.gov.tw", 
+        "time.stdtime.gov.tw",
+        "watch.stdtime.gov.tw", 
+        "tick.stdtime.gov.tw", 
+        "pool.ntp.org",  # 全球可用 NTP 伺服器 test ok
+        "time.google.com" #Google NTP 伺服器，全球適用 
+    ]  
+    ntptime.NTP_DELTA = 3155673600 # UTC+8 的 magic number
+    count = 1 if not must else 100
+
+    for _ in  range(count):
+        for server in ntp_servers:
+            try:
+                ntptime.host = server
+                ntptime.settime()
+                print(f"NTP 時間同步成功，使用 {server}")
+                return True
+            except Exception as e:
+                print(f"嘗試 {server} 失敗: {e}")
+                sleep(1)
+                continue  # 不 return False，繼續嘗試下一個伺服器
+    print("所有 NTP 伺服器皆無法同步，改用 HTTP 時間")
+    from utils import get_http_time
+    # 用http做時間同步的備援
+    get_http_time()
+
+
+
+
 # 時間RTC(處理有時連不上的問題)
-def tw_ntp(host='clock.stdtime.gov.tw', must=False):
-  """
-  host: 台灣可用的 ntp server 如下可任選，未指定預設為 clock.stdtime.gov.tw
-    tock.stdtime.gov.tw
-    watch.stdtime.gov.tw
-    time.stdtime.gov.tw
-    clock.stdtime.gov.tw
-    tick.stdtime.gov.tw
-  must: 是否非對到不可
-  """ 
-  ntptime.NTP_DELTA = 3155673600 # UTC+8 的 magic number
-  ntptime.host = host
-  count = 1
-  if must:
-    count = 100
-  for _ in  range(count):
-    try:
-      ntptime.settime()
-    except:
-      sleep(1)
-      continue
-    else:
-      return True
-  return False
+# def tw_ntp(host='clock.stdtime.gov.tw', must=False):
+#   """
+#   host: 台灣可用的 ntp server 如下可任選，未指定預設為 clock.stdtime.gov.tw
+#     tock.stdtime.gov.tw
+#     watch.stdtime.gov.tw
+#     time.stdtime.gov.tw
+#     clock.stdtime.gov.tw
+#     tick.stdtime.gov.tw
+#   must: 是否非對到不可
+#   """ 
+#   ntptime.NTP_DELTA = 3155673600 # UTC+8 的 magic number
+#   ntptime.host = host
+#   count = 1
+#   if must:
+#     count = 100
+#   for _ in  range(count):
+#     try:
+#       ntptime.settime()
+#     except:
+#       sleep(1)
+#       continue
+#     else:
+#       return True
+#   return False
 
 tw_ntp(must=True)
 
@@ -183,14 +215,21 @@ if filename in file_list:
 
       # 移除字串中的雙引號和空格，然後使用逗號分隔字串
       file_list = [file.strip('"') for file in lines.split(',')]
-
       OTA = senko.Senko(
-          user="pc0808f",  # Required
+          user="hsilan-sui",  # Required
           repo="happycollector",  # Required
-          branch="alpha",  # Optional: Defaults to "master"
+          branch="Sui_Branch",  # Optional: Defaults to "master"
           working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
           files=file_list
       )
+    #   OTA = senko.Senko(
+    #       user="pc0808f",  # Required
+    #       repo="happycollector",  # Required
+    #       branch="alpha",  # Optional: Defaults to "master"
+    #       working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
+    #       files=file_list
+    #   )
+     
 
       if OTA.update():
           print("Updated to the latest version! Rebooting...")
