@@ -15,8 +15,13 @@ from machine import UART, Timer, WDT
 from umqtt.simple import MQTTClient
 #本地
 from received_claw_data import ReceivedClawData
-print(f"wifi_manager: {wifi_manager}")
-print(f"network_info:{network_info},{wifi_manager.ssid}")
+
+# =============================
+# wifi連線 tets ok 
+# =============================
+# print(f"wifi_manager: {wifi_manager}")
+# print(f"network_info:{network_info},{wifi_manager.ssid}")
+# =============================
 # 定義狀態類型
 class MainStatus:
     NONE_WIFI = 0       # 還沒連上WiFi
@@ -129,50 +134,59 @@ def load_token():
 #     else:
 #         return None
 
+#==============
+# InternetData() class不再使用
+# 改成network_info['ip'],network_info['mac']
+# 這裡的函式會改成備援 也是加入在wifi_manager李
+#==============
+# def connect_wifi():
+#     global wifi
+#     wifi = network.WLAN(network.STA_IF)
 
-def connect_wifi():
-    global wifi
-    wifi = network.WLAN(network.STA_IF)
+#     if not wifi.config('essid'):
+#         print('沒有經過wifimgr.py')
+#         wifi_ssid = 'paypc'
+#         wifi_password = 'abcd1234'
+#         wifi.active(True)
+#         wifi.connect(wifi_ssid, wifi_password)
 
-    if not wifi.config('essid'):
-        print('沒有經過wifimgr.py')
-        wifi_ssid = 'paypc'
-        wifi_password = 'abcd1234'
-        wifi.active(True)
-        wifi.connect(wifi_ssid, wifi_password)
+#     print('Start to connect WiFi, SSID : {}'.format(wifi.config('essid')))
 
-    print('Start to connect WiFi, SSID : {}'.format(wifi.config('essid')))
-
-    while True:
-        for i in range(20):
-            print('Try to connect WiFi in {}s'.format(i))
-            utime.sleep(1)
-            if wifi.isconnected():
-                break
-        if wifi.isconnected():
-            print('WiFi connection OK!')
-            print('Network Config=', wifi.ifconfig())
-            connect_internet_data = InternetData()
-            connect_internet_data.ip_address = wifi.ifconfig()[0]
-            tmp_mac_address = wifi.config('mac')
-            connect_internet_data.mac_address = ''.join(['{:02X}'.format(byte) for byte in tmp_mac_address])
-            return connect_internet_data
-        else:
-            print('WiFi({}) connection Error'.format(wifi.config('essid')))
-            for i in range(30, -1, -1):
-                print("倒數{}秒後重新連線WiFi".format(i))
-                utime.sleep(1)
+#     while True:
+#         for i in range(20):
+#             print('Try to connect WiFi in {}s'.format(i))
+#             utime.sleep(1)
+#             if wifi.isconnected():
+#                 break
+#         if wifi.isconnected():
+#             print('WiFi connection OK!')
+#             print('Network Config=', wifi.ifconfig())
+#             #==============
+#             # InternetData() class不再使用
+#             # 改成network_info['ip'],network_info['mac']
+#             #==============
+#             #connect_internet_data = InternetData()
+#             connect_internet_data.ip_address = wifi.ifconfig()[0]
+#             tmp_mac_address = wifi.config('mac')
+#             connect_internet_data.mac_address = ''.join(['{:02X}'.format(byte) for byte in tmp_mac_address])
+#             return connect_internet_data
+#         else:
+#             print('WiFi({}) connection Error'.format(wifi.config('essid')))
+#             for i in range(30, -1, -1):
+#                 print("倒數{}秒後重新連線WiFi".format(i))
+#                 utime.sleep(1)
 
 
-class InternetData:
-    def __init__(self):
-        self.ip_address = ""
-        self.mac_address = ""
+# class InternetData:
+#     def __init__(self):
+#         self.ip_address = ""
+#         self.mac_address = ""
 
 
 def connect_mqtt():
     mq_server = 'happycollect.propskynet.com'
-    mq_id = my_internet_data.mac_address
+    #mq_id = my_internet_data.mac_address
+    mq_id = network_info['mac']
     mq_user = 'myuser'
     mq_pass = 'propskymqtt'
     while True:
@@ -199,7 +213,8 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
         print("MQTT Subscribe data (parsed):", data)
 
         # 獲取 topic 前綴
-        macid = my_internet_data.mac_address
+        #macid = my_internet_data.mac_address
+        macid = network_info['mac']
         mq_topic_prefix = f"{macid}/{token}"
 
         # 分派邏輯
@@ -315,7 +330,8 @@ def subscribe_MQTT_claw_topic():  # MQTT_client暫時固定為mq_client_1
     # ==>有新訊息時 會自動執行這個 callback執行這個 callback
     mq_client_1.set_callback(subscribe_MQTT_claw_recive_callback)
 
-    macid = my_internet_data.mac_address
+    #macid = my_internet_data.mac_address
+    macid = network_info['mac']
 
     # 訂閱 commands 主題(並建議盡量使用f-string)
     commands_topic = f"{macid}/{token}/commands"
@@ -355,8 +371,10 @@ def get_file_info(filename):
 ##　note: macid, token, my_internet_data.mac_address
 def publish_MQTT_claw_data(claw_1, MQTT_API_select, para1=""):
     # 根據 MQTT_API_select 執行不同的MQTT發佈
-    global wifi, VERSION
-    macid = my_internet_data.mac_address
+    #global wifi, VERSION
+    global VERSION
+    #macid = my_internet_data.mac_address
+    macid = network_info['mac']
     mq_topic = f"{macid}/{token}/{MQTT_API_select}"
 
     # data會佔用內存，改用透過api分流比對條件再調用工具函式讀取娃娃機的數值 (函式統一放在mqtt_helper.py)
@@ -367,10 +385,14 @@ def publish_MQTT_claw_data(claw_1, MQTT_API_select, para1=""):
     # 小卡連線強度(rssi) ==> 待測試
     elif MQTT_API_select == "status":
         from mqtt_helper import build_status_data
-        from utils import get_wifi_signal_strength # 待測試
-        # 需要將 WiFi 的 RSSI 信號作為參數傳入
-        wifi_signal = get_wifi_signal_strength(wifi)
-        MQTT_claw_data = build_status_data(claw_1, wifi_signal)
+        # ==============
+        # 取的wifi強度
+        # =============
+        signal_strength = wifi_manager.get_signal_strength()
+        # from utils import get_wifi_signal_strength # 待測試
+        # # 需要將 WiFi 的 RSSI 信號作為參數傳入
+        # wifi_signal = get_wifi_signal_strength(wifi)
+        MQTT_claw_data = build_status_data(claw_1, signal_strength)
     # 以下都是commandack 與commandack-開頭的API
     ## 先比對完整API字串(嚴謹的比對)
     elif MQTT_API_select == "commandack-clawmachinesetting":
@@ -1023,11 +1045,18 @@ while True:
 
         if now_main_state.state == MainStatus.NONE_WIFI:
             print('\n\rnow_main_state: WiFi is disconnect, 開機秒數:', current_time / 1000)
-
-            my_internet_data = connect_wifi()
+            # =============================
+            # wifi連線(在main.py已經有連線 這裡應該要做檢查連線 若斷網再加上一個fn做備援)
+            # =============================
+            #my_internet_data = connect_wifi()
             # 打印 myInternet 内容
-            print("My IP Address:", my_internet_data.ip_address)
-            print("My MAC Address:", my_internet_data.mac_address)
+            # =============================
+            # network_info
+            # =============================
+            print("My IP Address:", network_info['ip'])
+            print("My MAC Address:", network_info['mac'])
+            # print("My IP Address:", my_internet_data.ip_address)
+            # print("My MAC Address:", my_internet_data.mac_address)
             now_main_state.transition('WiFi is OK')
 
         elif now_main_state.state == MainStatus.NONE_INTERNET:
