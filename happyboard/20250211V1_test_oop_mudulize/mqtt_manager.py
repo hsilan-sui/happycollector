@@ -34,6 +34,7 @@ class MqttManager:
 
         #儲存wifi強度訊號
         self.version = version
+        print(f"Debug: MqttManager received version={self.version}")
         self.wifi_manager = wifi_manager
 
         #直接在這裡初始化MqttHandler實例 處理mqtt訂閱的消息後再發佈的邏輯 (不需要再主程式中實例化了)
@@ -112,6 +113,7 @@ class MqttManager:
             print("MQTT Publish topic:", topic)
             print("MQTT Publish data(JSON_str):", data_json)
             self.client.publish(topic, data_json)
+            utime.sleep(0.2)
             print("MQTT Publish Successful")
         except Exception as e:
             print("MQTT Publish Error:", e)
@@ -130,6 +132,12 @@ class MqttManager:
 
             ## 取得 topic 前綴
             mq_topic_prefix = f"{self.mac_id}/{self.token}"
+
+            #  **防止無限循環**(需要這行不然會出現遞迴)
+            if topic.decode().startswith(mq_topic_prefix + "/commandack"):
+                print("跳過自己訂閱自己的訊息")
+                return  # 直接返回，不處理這個訊息
+
             # 根據不同 topic 執行對應處理
             if topic.decode() == f"{mq_topic_prefix}/fota":
                 #這裡就可以調用mqtt_handler 中的方法了

@@ -62,8 +62,8 @@ class MqttHandler:
     def process_commands(self, data):
         """ 專門處理 接收到 /commands 的訊息 並進行下一步"""
         commands_handler = {
-            'ping': self.handle_ping, # 收到ping的mqtt訊息 ==> 回應pong
-            #'version': self.handle_version,
+            'ping': self.handle_ping, # 收到ping的mqtt訊息 ==> 回應pong OK
+            'version': self.handle_version, # 收到ping的mqtt訊息 ==> 回應pong OK
             # 'clawreboot': self.handle_claw_reboot,
             # 'clawstartgame': self.handle_claw_start_game,
             # 'clawcleantransaccount': self.handle_claw_clean_trans_account,
@@ -82,6 +82,11 @@ class MqttHandler:
     def handle_ping(self, data):
         #'ping': self.handle_ping
         self.publish_MQTT_claw_data("commandack-pong")
+
+    def handle_version(self, data):
+        #'version': self.handle_version
+        self.publish_MQTT_claw_data('commandack-version')
+
 
     ### ========= 發佈 publish函式  =============###
     def publish_MQTT_claw_data(self, api, para1=""):
@@ -117,6 +122,7 @@ class MqttHandler:
     def handle_ack_with_state(self, api_select, para1=None):
         ack_value = {
             "commandack-pong": "pong",
+            "commandack-version": self.mqtt_manager.version,
         }.get(api_select, "OK")
 
         return {
