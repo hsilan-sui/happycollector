@@ -1,9 +1,365 @@
 # mem_info
 
-## mqtt_helper (使用函式)
+## mqtt_helper (使用函式 x) ==>使用 mqtt_handler
+
+- 接收消息 並且發布消息
+
+```bash
+MPY: soft reboot
+stack: 640 out of 15360
+GC: total: 108032, used: 6704, free: 101328
+ No. of 1-blocks: 72, 2-blocks: 24, max blk sz: 81, max free sz: 5548
+初始化 SPI 和 LCD...
+LCD 初始化完成
+75552
+讀取 Wi-Fi 設定: SSID=propsky
+Wi-Fi connected!
+Network config: ('192.168.2.182', '255.255.255.0', '192.168.2.1', '8.8.8.8')
+網路資料:{'ip': '192.168.2.182', 'mac': '3CE90E4DD7E4'}
+WiFi Signal Strength: -42 dBm
+ESP OK
+(2025, 2, 13, 15, 2, 13, 3, 44)
+NTP 時間同步成功，使用 clock.stdtime.gov.tw
+['BN165DKBDriver.py', 'Data_Collection_Main.py', 'boot.py', 'lcd_manager.py', 'main.py', 'mqtt_handler.py', 'mqtt_helper.py', 'mqtt_manager.py', 'received_claw_data.py', 'senko.py', 'token.dat', 'uart_class.py', 'utils.py', 'wifi.dat', 'wifiManager.py', 'wifi_manager.py', 'wifimgr.py']
+OTA檔案不存在
+ESP OTA OK
+執行Data_Collection_Main.py...
+stack: 640 out of 15360
+GC: total: 108032, used: 33456, free: 74576
+ No. of 1-blocks: 330, 2-blocks: 89, max blk sz: 640, max free sz: 4067
+stack: 1184 out of 15360
+GC: total: 108032, used: 47920, free: 60112
+ No. of 1-blocks: 466, 2-blocks: 116, max blk sz: 640, max free sz: 1605
+
+開始執行Data_Collection_Main初始化，版本為: V1.07b3_sui
+開機秒數: 909.349
+1開機秒數: 909.3499
+2開機秒數: 909.3499
+3開機秒數: 909.3499
+
+Init, MainStatus: NONE_WIFI
+wifi_manager: <WiFiManager object at 3ffe5410>
+V1.07b3_sui
+3CE90E4DD7E4
+Get token: 445ccb69-2923-4f8f-b7d5-484132226ebe
+
+now_main_state: WiFi is disconnect, 開機秒數: 909.9509
+My IP Address: 192.168.2.182
+My MAC Address: 3CE90E4DD7E4
+
+Action: WiFi is OK, MainStatus: NONE_INTERNET
+
+now_main_state: WiFi is OK, 開機秒數: 911.204
+
+Action: Internet is OK, MainStatus: NONE_MQTT
+now_main_state: Internet is OK, 開機秒數: 912.205
+MQTT broker connection OK!
+MQTT Subscribe topic: 3CE90E4DD7E4/445ccb69-2923-4f8f-b7d5-484132226ebe/commands
+MQTT Subscribe topic: 3CE90E4DD7E4/445ccb69-2923-4f8f-b7d5-484132226ebe/fota
+MQTT Subscribe topic: 3CE90E4DD7E4/445ccb69-2923-4f8f-b7d5-484132226ebe/commands
+MQTT Subscribe topic: 3CE90E4DD7E4/445ccb69-2923-4f8f-b7d5-484132226ebe/fota
+
+Action: MQTT is OK, MainStatus: NONE_FEILOLI
+48896
+Updating 娃娃機 機台狀態 ...
+Sent packet to 娃娃機:     BB 73 01 01 00 00 00 00 00 00 00 00 00 01 00 AB
+Recive packet from 娃娃機: bytearray(b'-\x8a\x81\x01\x01\xff\x00\x00\x00\x00\x00\x00\x08\x01\x00\xdd')
+Recive 娃娃機 : 二、主控制\æ��台狀態
+
+Action: FEILOLI UART is OK, MainStatus: STANDBY_FEILOLI
+```
+
+- 連線 mqtt 訂閱與回調訂閱 ok
+
+```bash
+MPY: soft reboot
+stack: 640 out of 15360
+GC: total: 108032, used: 6704, free: 101328
+ No. of 1-blocks: 72, 2-blocks: 24, max blk sz: 81, max free sz: 5548
+初始化 SPI 和 LCD...
+LCD 初始化完成
+75568
+讀取 Wi-Fi 設定: SSID=propsky
+Tring to connect to : propsky ...
+嘗試連線中... 1/10
+嘗試連線中... 2/10
+Wi-Fi 連線成功！
+Network config: ('192.168.2.182', '255.255.255.0', '192.168.2.1', '8.8.8.8')
+網路資料:{'ip': '192.168.2.182', 'mac': '3CE90E4DD7E4'}
+WiFi Signal Strength: -40 dBm
+ESP OK
+(2025, 2, 12, 15, 15, 13, 2, 43)
+NTP 時間同步成功，使用 clock.stdtime.gov.tw
+['BN165DKBDriver.py', 'Data_Collection_Main.py', 'boot.py', 'lcd_manager.py', 'main.py', 'mqtt_handler.py', 'mqtt_helper.py', 'mqtt_manager.py', 'received_claw_data.py', 'senko.py', 'token.dat', 'uart_class.py', 'utils.py', 'wifi.dat', 'wifiManager.py', 'wifi_manager.py', 'wifimgr.py']
+OTA檔案不存在
+ESP OTA OK
+執行Data_Collection_Main.py...
+stack: 640 out of 15360
+GC: total: 108032, used: 33456, free: 74576
+ No. of 1-blocks: 330, 2-blocks: 89, max blk sz: 640, max free sz: 4067
+stack: 1184 out of 15360
+GC: total: 108032, used: 49728, free: 58304
+ No. of 1-blocks: 487, 2-blocks: 128, max blk sz: 640, max free sz: 1254
+
+開始執行Data_Collection_Main初始化，版本為: V1.07b3_sui
+開機秒數: 81.868
+1開機秒數: 81.868
+2開機秒數: 81.868
+3開機秒數: 81.868
+
+Init, MainStatus: NONE_WIFI
+Get token: 445ccb69-2923-4f8f-b7d5-484132226ebe
+
+now_main_state: WiFi is disconnect, 開機秒數: 82.445
+My IP Address: 192.168.2.182
+My MAC Address: 3CE90E4DD7E4
+
+Action: WiFi is OK, MainStatus: NONE_INTERNET
+
+now_main_state: WiFi is OK, 開機秒數: 83.69
+
+Action: Internet is OK, MainStatus: NONE_MQTT
+now_main_state: Internet is OK, 開機秒數: 84.691
+MQTT broker connected!
+訂閱 MQTT 主題: 3CE90E4DD7E4/445ccb69-2923-4f8f-b7d5-484132226ebe/commands
+訂閱 MQTT 主題: 3CE90E4DD7E4/445ccb69-2923-4f8f-b7d5-484132226ebe/fota
+mqtt: <MqttManager object at 3fff1fa0>
+mqtt_client: <MQTTClient object at 3ffe5830>
+訂閱 MQTT 主題: 3CE90E4DD7E4/445ccb69-2923-4f8f-b7d5-484132226ebe/commands
+訂閱 MQTT 主題: 3CE90E4DD7E4/445ccb69-2923-4f8f-b7d5-484132226ebe/fota
+
+Action: MQTT is OK, MainStatus: NONE_FEILOLI
+39632
+Updating 娃娃機 機台狀態 ...
+Sent packet to 娃娃機:     BB 73 01 01 00 00 00 00 00 00 00 00 00 01 00 AB
+Recive packet from 娃娃機: bytearray(b'-\x8a\x81\x01\x01\xff\x00\x00\x00\x00\x00\x00\x08\x01\x00\xdd')
+Recive 娃娃機 : 二、主控制\æ��台狀態
+
+Action: FEILOLI UART is OK, MainStatus: STANDBY_FEILOLI
+
+now_main_state: FEILOLI UART is OK, 開機秒數: 94.943
+39552
+Updating 娃娃機 遠端帳目、投幣帳目 ...
+Sent packet to 娃娃機:     BB 73 02 01 00 00 00 00 00 00 00 00 00 02 00 AB
+
+Action: FEILOLI UART is waiting, MainStatus: WAITING_FEILRecive packet from 娃娃機: bytearray(b'-\x8a\x82\x01\x00\x00\x00\x00\x00\x00\x00\x00\x08\x02\x00#')
+Recive 娃�OLI
+�機 : 三、 帳目查詢=>遠端帳目
+
+Action: FEILOLI UART is OK, MainStatus: STANDBY_FEILOLI
+
+now_main_state: FEILOLI UART is OK, 開機秒數: 105.428
+39536
+Updating 娃娃機 遠端帳目、投幣帳目 ...
+Sent packet to 娃娃機:     BB 73 02 01 00 00 00 00 00 00 00 00 00 03 00 AA
+
+Action: FEILOLI UART is waiting, MainStatus: WAITING_FEILOLI
+Recive packet from 娃娃機: bytearray(b'-\x8a\x82\x01\x00\x00\x00\x00\x00\x00\x00\x00\x08\x03\x00"')
+Recive 娃娃機 : 三、 帳目查詢=>遠端帳目
+
+Action: FEILOLI UART is OK, MainStatus: STANDBY_FEILOLI
+
+now_main_state: FEILOLI UART is OK, 開機秒數: 115.438
+39552
+Traceback (most recent call last):
+  File "Data_Collection_Main.py", line 880, in server_report_timer_callback
+  File "Data_Collection_Main.py", line 380, in publish_MQTT_claw_data
+NameError: name 'token' isn't defined
+Updating 娃娃機 遠端帳目、投幣帳目 ...
+Sent packet to 娃娃機:     BB 73 02 01 00 00 00 00 00 00 00 00 00 04 00 AD
+
+Action: FEILOLI UART is waiting, MainStatus: WAITING_FEILOLRecive packet from 娃娃機: bytearray(b'-\x8a\x82\x01\x00\x00\x00\x00\x00\x00\x00\x00\x08\x04\x00%')
+Recive 娃�I
+�機 : 三、 帳目查詢=>遠端帳目
+
+Action: FEILOLI UART is OK, MainStatus: STANDBY_FEILOLI
+
+now_main_state: FEILOLI UART is OK, 開機秒數: 125.441
+39536
+Updating 娃娃機 遠端帳目、投幣帳目 ...
+Sent packet to 娃娃機:     BB 73 02 01 00 00 00 00 00 00 00 00 00 05 00 AC
+
+Action: FEILOLI UART is waiting, MainStatus: WAITING_FEIRecive packet from 娃娃機: bytearray(b'-\x8a\x82\x01\x00\x00\x00\x00\x00\x00\x00\x00\x08\x05\x00$')
+Recive 娃�LOLI
+�機 : 三、 帳目查詢=>遠端帳目
+
+Action: FEILOLI UART is OK, MainStatus: STANDBY_FEILOLI
+
+```
+
+- 訂閱需要再改
+
+```bash
+MPY: soft reboot
+stack: 640 out of 15360
+GC: total: 108032, used: 6704, free: 101328
+ No. of 1-blocks: 72, 2-blocks: 24, max blk sz: 81, max free sz: 5548
+初始化 SPI 和 LCD...
+LCD 初始化完成
+75568
+讀取 Wi-Fi 設定: SSID=propsky
+Wi-Fi connected!
+Network config: ('192.168.2.182', '255.255.255.0', '192.168.2.1', '8.8.8.8')
+網路資料:{'ip': '192.168.2.182', 'mac': '3CE90E4DD7E4'}
+WiFi Signal Strength: -40 dBm
+ESP OK
+(2025, 2, 12, 15, 11, 32, 2, 43)
+NTP 時間同步成功，使用 clock.stdtime.gov.tw
+['BN165DKBDriver.py', 'Data_Collection_Main.py', 'boot.py', 'lcd_manager.py', 'main.py', 'mqtt_handler.py', 'mqtt_helper.py', 'mqtt_manager.py', 'received_claw_data.py', 'senko.py', 'token.dat', 'uart_class.py', 'utils.py', 'wifi.dat', 'wifiManager.py', 'wifi_manager.py', 'wifimgr.py']
+OTA檔案不存在
+ESP OTA OK
+執行Data_Collection_Main.py...
+stack: 640 out of 15360
+GC: total: 108032, used: 33456, free: 74576
+ No. of 1-blocks: 330, 2-blocks: 89, max blk sz: 640, max free sz: 4067
+stack: 1184 out of 15360
+GC: total: 108032, used: 49712, free: 58320
+ No. of 1-blocks: 487, 2-blocks: 128, max blk sz: 640, max free sz: 1248
+
+開始執行Data_Collection_Main初始化，版本為: V1.07b3_sui
+開機秒數: 313.536
+1開機秒數: 313.536
+2開機秒數: 313.536
+3開機秒數: 313.537
+
+Init, MainStatus: NONE_WIFI
+Get token: 445ccb69-2923-4f8f-b7d5-484132226ebe
+
+now_main_state: WiFi is disconnect, 開機秒數: 314.095
+My IP Address: 192.168.2.182
+My MAC Address: 3CE90E4DD7E4
+
+Action: WiFi is OK, MainStatus: NONE_INTERNET
+
+now_main_state: WiFi is OK, 開機秒數: 315.293
+
+Action: Internet is OK, MainStatus: NONE_MQTT
+now_main_state: Internet is OK, 開機秒數: 316.294
+執行失敗，改跑Data_Collection_Main.mpy name 'mqtt_manager' isn't defined
+Traceback (most recent call last):
+  File "main.py", line 284, in <module>
+MemoryError: memory allocation failed, allocating 240 bytes
+MicroPython v1.18-9-gd8e35d0e0-dirty on 2022-02-19; MPYBLOCKLY Micropython Borad with ESP32
+
+  - wait until it completes current work;
+  - use Ctrl+C to interrupt current work;
+  - reset the device and try again;
+  - check connection properties;
+  - make sure the device has suitable MicroPython / CircuitPython / firmware;
+  - make sure the device is not in bootloader mode.
+
+stack: 640 out of 15360
+GC: total: 108032, used: 6704, free: 101328
+ No. of 1-blocks: 72, 2-blocks: 24, max blk sz: 81, max free sz: 5548
+初始化 SPI 和 LCD...
+LCD 初始化完成
+75568
+讀取 Wi-Fi 設定: SSID=propsky
+Tring to connect to : propsky ...
+嘗試連線中... 1/10
+嘗試連線中... 2/10
+Wi-Fi 連線成功！
+Network config: ('192.168.2.182', '255.255.255.0', '192.168.2.1', '8.8.8.8')
+網路資料:{'ip': '192.168.2.182', 'mac': '3CE90E4DD7E4'}
+WiFi Signal Strength: -44 dBm
+ESP OK
+(2025, 2, 12, 13, 59, 44, 2, 43)
+NTP 時間同步成功，使用 clock.stdtime.gov.tw
+['BN165DKBDriver.py', 'Data_Collection_Main.py', 'boot.py', 'lcd_manager.py', 'main.py', 'mqtt_helper.py', 'mqtt_manager.py', 'received_claw_data.py', 'senko.py', 'token.dat', 'uart_class.py', 'utils.py', 'wifi.dat', 'wifiManager.py', 'wifi_manager.py', 'wifimgr.py']
+OTA檔案不存在
+ESP OTA OK
+執行Data_Collection_Main.py...
+stack: 640 out of 15360
+GC: total: 108032, used: 33360, free: 74672
+ No. of 1-blocks: 328, 2-blocks: 89, max blk sz: 640, max free sz: 4067
+stack: 1248 out of 15360
+GC: total: 108032, used: 51184, free: 56848
+ No. of 1-blocks: 508, 2-blocks: 141, max blk sz: 640, max free sz: 898
+
+開始執行Data_Collection_Main初始化，版本為: V1.07b3_sui
+開機秒數: 32.085
+1開機秒數: 32.085
+2開機秒數: 32.086
+3開機秒數: 32.086
+Get token: 445ccb69-2923-4f8f-b7d5-484132226ebe
+取得token: 445ccb69-2923-4f8f-b7d5-484132226ebe
+
+Init, MainStatus: NONE_WIFI
+
+now_main_state: WiFi is disconnect, 開機秒數: 32.656
+My IP Address: 192.168.2.182
+My MAC Address: 3CE90E4DD7E4
+
+Action: WiFi is OK, MainStatus: NONE_INTERNET
+
+now_main_state: WiFi is OK, 開機秒數: 33.84
+
+Action: Internet is OK, MainStatus: NONE_MQTT
+now_main_state: Internet is OK, 開機秒數: 34.841
+MQTT broker connected！
+MQTT connect fail: Subscribe callback is not set
+mqtt: <MqttManager object at 3ffecbb0>
+mqtt_client: <MQTTClient object at 3ffe5830>
+
+```
 
 - 雖然可以增加功能但缺點是函式參數傳遞過多
 - debug 不易(但目前穩定--這裡也拆出 class)
+
+```bash
+
+MPY: soft reboot
+stack: 640 out of 15360
+GC: total: 108032, used: 6704, free: 101328
+ No. of 1-blocks: 72, 2-blocks: 24, max blk sz: 81, max free sz: 5548
+初始化 SPI 和 LCD...
+LCD 初始化完成
+75552
+讀取 Wi-Fi 設定: SSID=propsky
+Wi-Fi connected!
+Network config: ('192.168.2.182', '255.255.255.0', '192.168.2.1', '8.8.8.8')
+網路資料:{'ip': '192.168.2.182', 'mac': '3CE90E4DD7E4'}
+WiFi Signal Strength: -46 dBm
+ESP OK
+嘗試 clock.stdtime.gov.tw 失敗: Timeout,ntp server not response.
+(2025, 2, 12, 13, 37, 6, 2, 43)
+NTP 時間同步成功，使用 time.stdtime.gov.tw
+['BN165DKBDriver.py', 'Data_Collection_Main.py', 'boot.py', 'lcd_manager.py', 'main.py', 'mqtt_helper.py', 'mqtt_manager.py', 'received_claw_data.py', 'senko.py', 'token.dat', 'uart_class.py', 'utils.py', 'wifi.dat', 'wifiManager.py', 'wifi_manager.py', 'wifimgr.py']
+OTA檔案不存在
+ESP OTA OK
+執行Data_Collection_Main.py...
+stack: 640 out of 15360
+GC: total: 108032, used: 33360, free: 74672
+ No. of 1-blocks: 328, 2-blocks: 89, max blk sz: 640, max free sz: 4067
+stack: 1248 out of 15360
+GC: total: 108032, used: 51216, free: 56816
+ No. of 1-blocks: 508, 2-blocks: 141, max blk sz: 640, max free sz: 890
+
+開始執行Data_Collection_Main初始化，版本為: V1.07b3_sui
+開機秒數: 96.31301
+Get token: 445ccb69-2923-4f8f-b7d5-484132226ebe
+1開機秒數: 96.344
+2開機秒數: 96.344
+3開機秒數: 96.34501
+取得token: <bound_method>
+
+Init, MainStatus: NONE_WIFI
+
+now_main_state: WiFi is disconnect, 開機秒數: 96.869
+My IP Address: 192.168.2.182
+My MAC Address: 3CE90E4DD7E4
+
+Action: WiFi is OK, MainStatus: NONE_INTERNET
+
+now_main_state: WiFi is OK, 開機秒數: 98.058
+
+Action: Internet is OK, MainStatus: NONE_MQTT
+now_main_state: Internet is OK, 開機秒數: 99.061
+MQTT broker connected！
+MQTT connect fail: Subscribe callback is not set
+mqtt: <MqttManager object at 3ffefc00>
+執行失敗，改跑Data_Collection_Main.mpy 'MQTTClient' object isn't callable
+```
 
 ## 把 UART 功能集中為一個 class
 

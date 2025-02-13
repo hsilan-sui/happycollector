@@ -33,7 +33,7 @@ class ClawMachineUART:
             "Clawvoltage": 0x03,#抓力電壓
             "Motorspeed": 0x04,
        }
-       elf.received_data = ReceivedClawData()  # **存放娃娃機的回應數據**
+       self.received_data = ReceivedClawData()  # **存放娃娃機的回應數據**
 
     def send_packet(self, command, parameters=None):
 

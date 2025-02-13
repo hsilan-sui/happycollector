@@ -14,6 +14,7 @@ from machine import UART, Timer, WDT
 #from machine import UART, Pin, SPI, Timer, WDT
 from umqtt.simple import MQTTClient
 #本地
+from mqtt_manager import MqttManager
 from received_claw_data import ReceivedClawData
 
 # =============================
@@ -107,32 +108,8 @@ class MainStateMachine:
             print('\n\rInvalid action:', action, 'for current state:', self.state)
             main_while_delay_seconds = 1
  
-# 開啟 token 檔案
-def load_token():
-    global token
-    try:
-        with open('token.dat') as f:
-            token = f.readlines()[0].strip()
-        print('Get token:', token)
-        len_token = len(token)
-        if len_token != 36:
-            while True:
-                print('token的長度不對:', len_token)
-                utime.sleep(30)
-    except Exception as e:
-        print("Open token.dat failed:", e)
-        while True:
-            print('遺失 token 檔案')
-            utime.sleep(30)
 
 
-#這裡移到工具函式(utils.py)
-# def get_wifi_signal_strength(wlan):
-#     if wlan.isconnected():
-#         signal_strength = wlan.status('rssi')
-#         return signal_strength
-#     else:
-#         return None
 
 #==============
 # InternetData() class不再使用
@@ -177,184 +154,7 @@ def load_token():
 #                 utime.sleep(1)
 
 
-# class InternetData:
-#     def __init__(self):
-#         self.ip_address = ""
-#         self.mac_address = ""
 
-
-def connect_mqtt():
-    mq_server = 'happycollect.propskynet.com'
-    #mq_id = my_internet_data.mac_address
-    mq_id = network_info['mac']
-    mq_user = 'myuser'
-    mq_pass = 'propskymqtt'
-    while True:
-        try:
-            mq_client = MQTTClient(mq_id, mq_server, user=mq_user, password=mq_pass)
-            mq_client.connect()
-            print('MQTT Broker connection OK!')
-            return mq_client
-        except Exception as e:
-            print("MQTT Broker connection failed:", e)
-            for i in range(10, -1, -1):
-                print("倒數{}秒後重新連線MQTT Broker".format(i))
-                utime.sleep(1)
-
-# 寫法subscribe_MQTT_claw_recive_callback(topic, message)
-def subscribe_MQTT_claw_recive_callback(topic, message):
-    print("MQTT Subscribe recive data")
-    print("MQTT Subscribe topic:", topic)
-    print("MQTT Subscribe data(JSON_str):", message)
-
-    try:
-        # 解碼訊息
-        data = ujson.loads(message)
-        print("MQTT Subscribe data (parsed):", data)
-
-        # 獲取 topic 前綴
-        #macid = my_internet_data.mac_address
-        macid = network_info['mac']
-        mq_topic_prefix = f"{macid}/{token}"
-
-        # 分派邏輯
-        ## /fota
-        if topic.decode() == f"{mq_topic_prefix}/fota":
-            from mqtt_helper import process_fota
-            process_fota(data, publish_MQTT_claw_data, claw_1)
-
-        ## /commands
-        elif topic.decode() == f"{mq_topic_prefix}/commands":
-            from mqtt_helper import process_commands
-            process_commands(data, publish_MQTT_claw_data, uart_FEILOLI_send_packet, claw_1, KindFEILOLIcmd)
-        else:
-            print(f"Unknown topic received: {topic.decode()}")
-    except ValueError as ve:
-        print(f"JSON decode error: {ve}")
-    except Exception as e:
-        print(f"Error in MQTT callback: {e}")
-#　改寫法(減少if -else嵌套)subscribe_MQTT_claw_recive_callback(topic, message)
-
-# def subscribe_MQTT_claw_recive_callback(topic, message):
-#     print("MQTT Subscribe recive data")
-#     print("MQTT Subscribe topic:", topic)
-#     print("MQTT Subscribe data(JSON_str):", message)
-#     try:
-#         data = ujson.loads(message)
-#         print("MQTT Subscribe data:", data)
-
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token
-#         if topic.decode() == (mq_topic + '/fota'):
-#             otafile = 'otalist.dat'
-#             if ('file_list' in data) and ('password' in data):
-#                 if data['password'] == 'c0b82a2c-4b03-42a5-92cd-3478798b2a90':
-#                     #print("password checked")
-#                     publish_MQTT_claw_data(claw_1, 'fotaack')                    
-#                     with open(otafile, "w") as f:
-#                         f.write(''.join(data['file_list']))
-#                     print("otafile 輸出完成，即將重開機...")
-#                     utime.sleep(3)
-#                     reset()
-#                 else:
-#                     print("password failed")
-#         elif topic.decode() == (mq_topic + '/commands'):
-#             if data['commands'] == 'ping':
-#                 publish_MQTT_claw_data(claw_1, 'commandack-pong')
-#             elif data['commands'] == 'version':
-#                 publish_MQTT_claw_data(claw_1, 'commandack-version')
-#             elif data['commands'] == 'clawreboot':
-#                 if 'state' in data:
-#                     publish_MQTT_claw_data(claw_1, 'commandack-clawreboot',data['state'])
-#                     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Machine_reboot)
-#                 # else:
-#                 #     publish_MQTT_claw_data(claw_1, 'commandack-clawreboot')
-#                 #     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Machine_reboot)
-#             elif data['commands'] == 'clawstartgame':
-#                 if 'state' in data:
-#                     publish_MQTT_claw_data(claw_1, 'commandack-clawstartgame',data['state'])
-#                     # 提取mqtt 傳送來的epays 和freeplays值並驗證參數範圍
-#                     epays = data.get('epays', None)
-#                     freeplays = data.get('freeplays', None)
-#                     # 將接收mqtt server的指令轉為dict(啟動次數 與 贈局數)
-#                     if not (1 <= epays <= 40):
-#                         raise ValueError(f"錯誤的epays值: {epays} 範圍在1~40")
-#                     if not (0 <= freeplays <= 10):
-#                         raise ValueError(f"錯誤的freeplays值: {freeplays} 範圍在0~10")
-                    
-#                     # 將 epays 和 freeplays 組成參數物件
-#                     clawstartgamesitem = {
-#                         "epays": epays,
-#                         "freeplays": freeplays
-#                     }
-#                      # 調用 UART 發送遊戲啟動指令 帶參數或不帶參數
-#                     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game, clawstartgamesitem)
-#             elif data['commands'] == 'clawcleantransaccount':
-#                 if 'state' in data and 'account' in data:
-#                     clawcleanitems = data['account'].split(', ')  # 將接收的account項目轉為list
-#                     publish_MQTT_claw_data(claw_1, 'commandack-clawcleantransaccount', data['state'])
-#                     # 統一把mqtt驅動傳過來的account內容 組成list 變成參數 傳送封包那裏再做判斷 這裡簡化處理
-#                     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Clean_transaction_account, clawcleanitems)
-#             #機台設定:抓力電壓
-#             elif data['commands'] == 'clawmachinesetting':  
-#                 if 'setting' in data:
-#                     clawsettingitem = data['setting'].strip()  # 取得單一的設定項目
-                    
-#                     valid_settings = ["BasicsettingA", "BasicsettingB", "BasicsettingC", "Clawvoltage", "Motorspeed"]
-                    
-#                     if clawsettingitem in valid_settings:           
-#                         # 發送 UART 指令
-#                         uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Machine_setting, clawsettingitem)
-#                     else:
-#                         # 無效的設定項目
-#                         print(f"Invalid setting received: {clawsettingitem}")
-#                         # # 發布 MQTT 訊息 =>改寫到收到娃娃機封包回傳再上傳
-#                         # publish_MQTT_claw_data(claw_1, 'commandack-clawclaw', clawsettingitem)
-#                 else:
-#                     print("Missing 'setting' field in the received data") 
-#             elif data['commands'] == 'fileinfo':
-#                 publish_MQTT_claw_data(claw_1, 'commandack-fileinfo',data['filename'])
-#                 pass
-#             elif data['commands'] == 'fileremove':
-#                 publish_MQTT_claw_data(claw_1, 'commandack-fileremove',data['filename'])
-#                 pass
-
-#     #       elif data['commands'] == 'getstatus':
-
-#     except Exception as e:
-#         print("MQTT Subscribe data to JSON Error:", e)
-
-
-def subscribe_MQTT_claw_topic():  # MQTT_client暫時固定為mq_client_1
-    # 設定接收MQTT訊息的回呼函式.set_callback(fn_CALLBACK)
-    # ==>有新訊息時 會自動執行這個 callback執行這個 callback
-    mq_client_1.set_callback(subscribe_MQTT_claw_recive_callback)
-
-    #macid = my_internet_data.mac_address
-    macid = network_info['mac']
-
-    # 訂閱 commands 主題(並建議盡量使用f-string)
-    commands_topic = f"{macid}/{token}/commands"
-    #mq_topic = macid + '/' + token + '/commands'
-    mq_client_1.subscribe(commands_topic)
-    print("MQTT Subscribe topic:", commands_topic)
-
-    # 訂閱fota 主題
-    fota_topic = f"{macid}/{token}/fota"
-    #mq_topic = macid + '/' + token + '/fota'
-    mq_client_1.subscribe(fota_topic)
-    print("MQTT Subscribe topic:", fota_topic)
-
-def publish_data(mq_client, topic, data):
-    try:
-        # mq_message = ujson.dumps(data)
-        print("MQTT Publish topic:", topic)
-        print("MQTT Publish data(JSON_str):", data)
-        mq_client.publish(topic, data)
-        print("MQTT Publish Successful")
-    except Exception as e:
-        print("MQTT Publish Error:", e)
-        now_main_state.transition('MQTT is not OK')
 
 def get_file_info(filename):
     try:
@@ -369,276 +169,63 @@ def get_file_info(filename):
 # 寫法publish_MQTT_claw_data
 ## global wifi, version
 ##　note: macid, token, my_internet_data.mac_address
-def publish_MQTT_claw_data(claw_1, MQTT_API_select, para1=""):
-    # 根據 MQTT_API_select 執行不同的MQTT發佈
-    #global wifi, VERSION
-    global VERSION
-    #macid = my_internet_data.mac_address
-    macid = network_info['mac']
-    mq_topic = f"{macid}/{token}/{MQTT_API_select}"
+# def publish_MQTT_claw_data(claw_1, MQTT_API_select, para1=""):
+#     # 根據 MQTT_API_select 執行不同的MQTT發佈
+#     #global wifi, VERSION
+#     global VERSION
+#     #macid = my_internet_data.mac_address
+#     macid = network_info['mac']
+#     mq_topic = f"{macid}/{mqtt_manager.token}/{MQTT_API_select}"
 
-    # data會佔用內存，改用透過api分流比對條件再調用工具函式讀取娃娃機的數值 (函式統一放在mqtt_helper.py)
-    # sales 銷售數值 (工具函式:build_sales_data)
-    if MQTT_API_select == "sales":
-        from mqtt_helper import build_sales_data
-        MQTT_claw_data = build_sales_data(claw_1)
-    # 小卡連線強度(rssi) ==> 待測試
-    elif MQTT_API_select == "status":
-        from mqtt_helper import build_status_data
-        # ==============
-        # 取的wifi強度
-        # =============
-        signal_strength = wifi_manager.get_signal_strength()
-        # from utils import get_wifi_signal_strength # 待測試
-        # # 需要將 WiFi 的 RSSI 信號作為參數傳入
-        # wifi_signal = get_wifi_signal_strength(wifi)
-        MQTT_claw_data = build_status_data(claw_1, signal_strength)
-    # 以下都是commandack 與commandack-開頭的API
-    ## 先比對完整API字串(嚴謹的比對)
-    elif MQTT_API_select == "commandack-clawmachinesetting":
-        from mqtt_helper import build_clawmachinesetting_data
-        MQTT_claw_data = build_clawmachinesetting_data(claw_1, para1)
-    #
-    elif MQTT_API_select == "commandack-fileinfo": # 待測試
-        from mqtt_helper import build_fileinfo_data
-        MQTT_claw_data = build_fileinfo_data(para1)
+#     # data會佔用內存，改用透過api分流比對條件再調用工具函式讀取娃娃機的數值 (函式統一放在mqtt_helper.py)
+#     # sales 銷售數值 (工具函式:build_sales_data)
+#     if MQTT_API_select == "sales":
+#         from mqtt_helper import build_sales_data
+#         MQTT_claw_data = build_sales_data(claw_1)
+#     # 小卡連線強度(rssi) ==> 待測試
+#     elif MQTT_API_select == "status":
+#         from mqtt_helper import build_status_data
+#         # ==============
+#         # 取的wifi強度
+#         # =============
+#         signal_strength = wifi_manager.get_signal_strength()
+#         # from utils import get_wifi_signal_strength # 待測試
+#         # # 需要將 WiFi 的 RSSI 信號作為參數傳入
+#         # wifi_signal = get_wifi_signal_strength(wifi)
+#         MQTT_claw_data = build_status_data(claw_1, signal_strength)
+#     # 以下都是commandack 與commandack-開頭的API
+#     ## 先比對完整API字串(嚴謹的比對)
+#     elif MQTT_API_select == "commandack-clawmachinesetting":
+#         from mqtt_helper import build_clawmachinesetting_data
+#         MQTT_claw_data = build_clawmachinesetting_data(claw_1, para1)
+#     #
+#     elif MQTT_API_select == "commandack-fileinfo": # 待測試
+#         from mqtt_helper import build_fileinfo_data
+#         MQTT_claw_data = build_fileinfo_data(para1)
 
-    elif MQTT_API_select == "commandack-fileremove": # 待測試
-        from mqtt_helper import build_fileremove_data
-        MQTT_claw_data = build_fileremove_data(para1)
+#     elif MQTT_API_select == "commandack-fileremove": # 待測試
+#         from mqtt_helper import build_fileremove_data
+#         MQTT_claw_data = build_fileremove_data(para1)
     
-    elif MQTT_API_select.startswith("commandack"):
-        from mqtt_helper import handle_ack_with_state
-        MQTT_claw_data = handle_ack_with_state(MQTT_API_select, para1, version=VERSION)
-    else:
-        print(f"未處理的 MQTT_API_select: {MQTT_API_select}")
-        return  # 結束函式執行
+#     elif MQTT_API_select.startswith("commandack"):
+#         from mqtt_helper import handle_ack_with_state
+#         MQTT_claw_data = handle_ack_with_state(MQTT_API_select, para1, version=VERSION)
+#     else:
+#         print(f"未處理的 MQTT_API_select: {MQTT_API_select}")
+#         return  # 結束函式執行
     
-    # 發佈資料到MQTT
-    if MQTT_claw_data:
-        mq_json_str = ujson.dumps(MQTT_claw_data)
+#     # 發佈資料到MQTT
+#     if MQTT_claw_data:
+#         mq_json_str = ujson.dumps(MQTT_claw_data)
 
-        try:
-            publish_data(mq_client_1, mq_topic, mq_json_str)
-            # 清掉dict data
-            MQTT_claw_data.clear()
-            gc.collect()
-        except Exception as e:
-            print(f"MQTT發佈失敗: {e}")
-
-#　減少if-else嵌套 
-# def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選擇claw_1、claw_2、...，但MQTT_client暫時固定為mq_client_1
-#     global wifi
-#     if MQTT_API_select == 'sales':
-#         WCU_Freeplaytimes = (
-#                     claw_data.Number_of_Total_games - claw_data.Number_of_Original_Payment - claw_data.Number_of_Coin - claw_data.Number_of_Gift_Payment)
-#         if WCU_Freeplaytimes < 0:
-#             WCU_Freeplaytimes = 0
-#             # 上行是 Thomas 測試
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/sales'
-#         MQTT_claw_data = {
-#             "Epayplaytimes": claw_data.Number_of_Original_Payment,
-#             "Coinplaytimes": claw_data.Number_of_Coin,
-#             "Giftplaytimes": claw_data.Number_of_Gift_Payment,
-#             "GiftOuttimes":  claw_data.Number_of_Award,
-#             "Freeplaytimes": WCU_Freeplaytimes,
-#             "time": utime.time()
-#         }
-#     elif MQTT_API_select == 'status':
-#         signal_strength = get_wifi_signal_strength(wifi)
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/status'
-#         if now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI :
-#             MQTT_claw_data = {
-#                 "status": "%02d" % (claw_data.Error_Code_of_Machine),
-#                 "wifirssi": signal_strength,
-#                 "time":   utime.time()
-#             }
-#         else :
-#             MQTT_claw_data = {
-#                 "status": "%02d" % 99,
-#                 "wifirssi": signal_strength,
-#                 "time":   utime.time()
-#             }
-#     elif MQTT_API_select == 'commandack-pong':
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/commandack'
-#         MQTT_claw_data = {
-#             "ack": "pong",
-#             "time": utime.time()
-#         }
-#     elif MQTT_API_select == 'commandack-version':
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/commandack'
-#         MQTT_claw_data = {
-#             "ack":  VERSION,
-#             "time": utime.time()
-#         }
-#     elif MQTT_API_select == 'fotaack':
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/fotaack'
-#         MQTT_claw_data = {
-#             "ack": "OK",
-#             "time": utime.time()
-#         }
-#     elif MQTT_API_select == 'commandack-clawreboot':
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/commandack'
-#         if para1=="" :
-#             MQTT_claw_data = {
-#                 "ack": "OK",
-#                 "time": utime.time()
-#             }
-#         else :
-#             MQTT_claw_data = {
-#                 "ack": "OK",
-#                 "state" : para1,
-#                 "time": utime.time()
-#             }            
-#     elif MQTT_API_select == 'commandack-clawstartgame':
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/commandack'
-#         if para1=="" :
-#             MQTT_claw_data = {
-#                 "ack": "OK",
-#                 "time": utime.time()
-#             }
-#         else :
-#             MQTT_claw_data = {
-#                 "ack": "OK",
-#                 "state" : para1,
-#                 "time": utime.time()
-#             }
-#     #commandack-clearTransClawData
-#     elif MQTT_API_select == 'commandack-clawcleantransaccount':
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/commandack'
-#         if para1=="" :
-#             MQTT_claw_data = {
-#                 "ack": "OK",
-#                 "time": utime.time()
-#             }
-#         else :
-#             MQTT_claw_data = {
-#                 "ack": "OK",
-#                 "state" : para1,
-#                 "time": utime.time()
-#             }
-#     # 機台設定
-#     elif MQTT_API_select == 'commandack-clawmachinesetting':
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/commandack'
-#         #抓力電壓
-#         if para1=='Clawvoltage':
-#             MQTT_claw_data = {
-#                 "HiVoltageValue": claw_data.Value_of_Hi_voltage, #強電壓數值
-#                 "MidVoltageValue": claw_data.Value_of_Mid_voltage, #中電壓數值
-#                 "LoVoltageValue": claw_data.Value_of_Lo_voltage, #弱電壓數值數值
-#                 "MidVoltageTopDistance":  claw_data.Distance_of_Mid_voltage_and_Top, #中壓距離頂點
-#                 "GuaranteedPrizeHiVoltage": claw_data.Hi_voltage_of_Guaranteed_prize, #保夾的強電壓
-#                 "time": utime.time()
-#             }
-#         else :
-#             MQTT_claw_data = {
-#                 "ack": "sui_OK",
-#                 "state" : para1,
-#                 "time": utime.time()
-#             }
-#     elif MQTT_API_select == 'commandack-fileinfo':
-#         #check file exist
-#         #read file info
-#         file_name = para1
-#         file_exist=0
-#         file_date=""
-#         file_size=0
 #         try:
-#             file_stat = os.stat(file_name)
-#             file_size, file_mtime = get_file_info(file_name)
-#             if file_size is not None:
-#                 #print("File Size:", file_size, "bytes")
+#             publish_data(mq_client_1, mq_topic, mq_json_str)
+#             # 清掉dict data
+#             MQTT_claw_data.clear()
+#             gc.collect()
+#         except Exception as e:
+#             print(f"MQTT發佈失敗: {e}")
 
-#                 if file_mtime is not None:
-#                     formatted_date = utime.localtime(file_mtime)
-#                     formatted_date_str = "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(
-#                         formatted_date[0], formatted_date[1], formatted_date[2],
-#                         formatted_date[3], formatted_date[4], formatted_date[5]
-#                     )
-#                     file_date=formatted_date_str
-#                     file_exist=1
-#                     #print("File Date:", formatted_date_str)
-#                 else:
-#                     file_exist=2
-#                     formatted_date_str="N/A"
-#                     #print("File Date: N/A")
-#             else:
-#                 #print("Unable to retrieve file information.")
-#                 file_exist=80
-#         except OSError:
-#             #print("File does not exist.")
-#             file_exist=0
-        
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/commandack'
-#         MQTT_claw_data = {
-#             "ack": "OK",
-#             "exist" : file_exist,
-#             "date" : file_date,
-#             "size" : file_size,
-#             "time": utime.time()
-#         }             
-# #         if para1=="" :
-# #             MQTT_claw_data = {
-# #                 "ack": "OK",
-# #                 "time": utime.time()
-# #             }
-# #         else :
-# #             MQTT_claw_data = {
-# #                 "ack": "OK",
-# #                 "state" : para1,
-# #                 "time": utime.time()
-# #             }
-#     elif MQTT_API_select == 'commandack-fileremove':
-#         #check file exist
-#         #yes remove it, reply remove ok
-#         #no reply no file
-#         file_name = para1
-#         result=""
-#         try:
-#             file_stat = os.stat(file_name)
-#             if file_name != "main.py":
-#                 os.remove(para1)
-#                 result="remove ok"
-#             else:
-#                 result="CAN NOT REMOVE main.py"
-
-#         except OSError:
-#             #print("File does not exist.")
-#             file_exist=0
-#             result="NO FILE!" 
-        
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/commandack'
-#         MQTT_claw_data = {
-#             "ack": "OK",
-#             "result" : result,
-#             "time": utime.time()
-#         }           
-# #         macid = my_internet_data.mac_address
-# #         mq_topic = macid + '/' + token + '/commandack'
-# #         if para1=="" :
-# #             MQTT_claw_data = {
-# #                 "ack": "OK",
-# #                 "time": utime.time()
-# #             }
-# #         else :
-# #             MQTT_claw_data = {
-# #                 "ack": "OK",
-# #                 "state" : para1,
-# #                 "time": utime.time()
-# #             }               
-#     mq_json_str = ujson.dumps(MQTT_claw_data)
-#     publish_data(mq_client_1, mq_topic, mq_json_str)
 
 
 class KindFEILOLIcmd:
@@ -843,7 +430,7 @@ def uart_FEILOLI_recive_packet_task():
                                     claw_1.Error_Code_of_Machine = uart_recive_packet[12]
                                     print("收到娃娃機封包:更新基本設C完成")
                                 # 發布 MQTT 訊息(可以確定判斷式統一發布)
-                                publish_MQTT_claw_data(claw_1, 'commandack-clawmachinesetting', setting_name)     
+                                mqtt_handler.publish_MQTT_claw_data(claw_1, 'commandack-clawmachinesetting', setting_name)     
                             LCD_update_flag['Claw_Value'] = True
                             now_main_state.transition('FEILOLI UART is OK')
                             utime.sleep_ms(100)     # 休眠一小段時間，避免過度使用CPU資源
@@ -861,12 +448,20 @@ def server_report_timer_callback(timer):
     if now_main_state.state == MainStatus.NONE_FEILOLI or now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
         try:
             # 更新 MQTT Subscribe
-            mq_client_1.check_msg()
+            #=======================
+            # 更改為mqtt_manager
+            #=======================
+            mqtt_manager.check_messages()
+            #mq_client_1.check_msg()
             #mq_client_1.ping()
         except OSError as e:
             print("WiFi is disconnect")
             now_main_state.transition('WiFi is disconnect')
-            mq_client_1.disconnect()
+            #=======================
+            # 更改為mqtt_managerf
+            #=======================
+            mqtt_manager.reconnect_mqtt()
+            #mq_client_1.disconnect()
             return
 
         global server_report_sales_counter
@@ -875,9 +470,9 @@ def server_report_timer_callback(timer):
         
             wdt.feed()
             if now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI :
-                publish_MQTT_claw_data(claw_1, 'sales')
+                mqtt_handler.publish_MQTT_claw_data(claw_1, 'sales')
             # if claw_1.Error_Code_of_Machine != 0x00 :
-            publish_MQTT_claw_data(claw_1, 'status')
+            mqtt_handler.publish_MQTT_claw_data(claw_1, 'status')
 
 # 定義claw_check計時器回調函式
 counter_of_WAITING_FEILOLI = 0
@@ -903,7 +498,7 @@ def claw_check_timer_callback(timer):
             print("Updating 娃娃機 機台狀態 ...")
             uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Machine_status)
             
-# 定義LCD_update計時器回調函式
+
 # 定義LCD_update計時器回調函式
 def LCD_update_timer_callback(timer):
     import binascii
@@ -938,7 +533,7 @@ def LCD_update_timer_callback(timer):
             lcd_mgr.draw_text(5*8, 7*16, text='error',fg=lcd_mgr.color.RED, bg=lcd_mgr.color.BLACK, bgmode=-1)
         elif now_main_state.state == MainStatus.NONE_FEILOLI or now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
              #顯示wifi和MQTT狀態
-            lcd_mgr.draw_text(5*8, 7*16, text='ok   ',fg=lcd_mgr.color.GREEN, bg=lcd_mgr.color.BLACK, bgmode=-1)
+            lcd_mgr.draw_text(5*8, 7*16, text='OK   ',fg=lcd_mgr.color.GREEN, bg=lcd_mgr.color.BLACK, bgmode=-1)
 
     elif LCD_update_flag['Claw_State']:
         LCD_update_flag['Claw_State'] = False  
@@ -978,22 +573,13 @@ print('\n\r開始執行Data_Collection_Main初始化，版本為:', VERSION)
 print('開機秒數:', utime.ticks_ms() / 1000)
 
 # 開啟 token 檔案
-load_token()
+#load_token()
 
 print('1開機秒數:', utime.ticks_ms() / 1000)
 
 wdt=WDT(timeout=1000*60*10)
 
 print('2開機秒數:', utime.ticks_ms() / 1000)
-
-# lcd 全域單例化 不需要再配置
-# # LCD配置
-# try:
-#     lcd_mgr = LCDManager.get_instance()
-#     print(lcd_mgr)
-# except Exception as e:
-#     print('st7735 Error')
-#     reset()
 
 LCD_update_flag = {
     'Uniform': True,
@@ -1005,6 +591,9 @@ LCD_update_flag = {
 
 print('3開機秒數:', utime.ticks_ms() / 1000)
 
+#handler = MQTTHandler(mqtt, claw_data, uart_FEILOLI.write)
+
+#     mqtt.client.set_callback(handler.process_message)
 # 創建狀態機
 now_main_state = MainStateMachine()
 
@@ -1016,7 +605,29 @@ mq_client_1 = None
 
 # UART配置
 uart_FEILOLI = UART(2, baudrate=19200, tx=17, rx=16)
+#==============
+# mqtt初始化(已含toke取得)
+# 涵蓋娃娃機參數 UART類別 KindFEILOLIcmd類別
+#==============
+print(f"wifi_manager: {wifi_manager}")  # 檢查 wifi_manager 是否有值
+print(VERSION)
+print(network_info["mac"])
+mqtt_manager = MqttManager(
+    mac_id=network_info["mac"],
+    claw_1=claw_1,
+    uart_FEILOLI_send_packet=uart_FEILOLI_send_packet,
+    KindFEILOLIcmd=KindFEILOLIcmd,
+    version=VERSION,
+    wifi_manager=wifi_manager,
+)
+# mqtt_manager, claw_1, uart_FEILOLI_send_packet
+#mqtt_handler = MqttHandler(mqtt_manager,claw_1,uart_FEILOLI_send_packet)
 
+# 創建 MQTT 訊息處理器(函式方法)
+# handler = MQTTHandler(mqtt_manager, claw_1, uart_FEILOLI.write)
+
+# # 設置 MQTT 訂閱回調函數
+# mqtt_manager.set_callback(handler.process_message)
 # 創建計時器物件
 server_report_timer = Timer(0)
 claw_check_timer = Timer(1)
@@ -1065,10 +676,19 @@ while True:
 
         elif now_main_state.state == MainStatus.NONE_MQTT:
             print('now_main_state: Internet is OK, 開機秒數:', current_time / 1000)
-            mq_client_1 = connect_mqtt()
+            # =============================
+            # 連線mqtt
+            # =============================
+            # 連線 MQTT
+            mqtt_manager.connect_mqtt()
+            #print(f"mqtt: {mqtt_manager}")
+            #mq_client_1 = connect_mqtt()
+            mq_client_1 = mqtt_manager.client
+            #print(f"mqtt_client: {mq_client_1}")
             if mq_client_1 is not None:
                 try:
-                    subscribe_MQTT_claw_topic()
+                    #subscribe_MQTT_claw_topic()
+                    mqtt_manager.subscribe_topics()
                     now_main_state.transition('MQTT is OK')
                 except:
                     print('MQTT subscription has failed')

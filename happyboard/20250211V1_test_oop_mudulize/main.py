@@ -156,18 +156,20 @@ def tw_ntp(must=False):
         "time.google.com" #Google NTP 伺服器，全球適用 
     ]  
     ntptime.NTP_DELTA = 3155673600 # UTC+8 的 magic number
-    count = 1 if not must else 100
+    #3155673600 秒 = UTC+8 的時間修正值（因為 MicroPython 預設 NTP 是 UTC 1970 年）
+    count = 1 if not must else 10 #最多嘗試10次
 
     for _ in  range(count):
         for server in ntp_servers:
             try:
-                ntptime.host = server
-                ntptime.settime()
+                ntptime.host = server # 調整時間的基準值
+                ntptime.settime() #設定timeout 
                 print(f"NTP 時間同步成功，使用 {server}")
                 return True
             except Exception as e:
                 print(f"嘗試 {server} 失敗: {e}")
-                sleep(1)
+                #sleep(1)
+                sleep(1)  # uniform(1, 3)隨機等待 1~3 秒，降低被封鎖的風險
                 continue  # 不 return False，繼續嘗試下一個伺服器
     print("所有 NTP 伺服器皆無法同步，改用 HTTP 時間")
     from utils import get_http_time
