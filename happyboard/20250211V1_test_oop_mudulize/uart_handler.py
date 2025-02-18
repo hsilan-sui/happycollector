@@ -106,7 +106,9 @@ class UartHandler:
             self.mqtt_handler.publish_MQTT_claw_data('commandack-clawmachinesetting', setting_name)
         #加入這行(還需要傳遞LCD_update_flag和now_main_state進來)
         self.LCD_update_flag['Claw_Value'] = True
+        print("debug:[uart_handler] 已處理LCD_update_flag")
         self.now_main_state.transition('FEILOLI UART is OK')  # <== 這一行必須確保存在
+        utime.sleep_ms(100) # 休眠一小段時間，避免過度使用CPU資源
 
     def _format_packet(self, packet):
         """格式化封包輸出"""

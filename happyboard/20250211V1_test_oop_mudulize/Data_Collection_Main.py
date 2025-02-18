@@ -711,7 +711,9 @@ LCD_update_timer = Timer(2)
 #             gc.collect()
 gc.collect()
 print("執行緒開始")
+#_thread.stack_size(8 * 1024)  # 只需設置一次
 _thread.stack_size(16 * 1024)  # 只需設置一次
+#_thread.stack_size(20 * 1024)  # 只需設置一次
 micropython.mem_info() 
 _thread.start_new_thread(uart_manager.receive_packet, ())
 #_thread.start_new_thread(thread_task, ())

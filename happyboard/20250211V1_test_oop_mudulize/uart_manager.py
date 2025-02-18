@@ -35,7 +35,8 @@ class UartManager:
             self.KindFEILOLIcmd.Send_Machine_reboot: [0xBB, 0x73, 0x01, 0x01, 0x05],
             # self.KindFEILOLIcmd.Send_Machine_shutdown: [],
             #self.KindFEILOLIcmd.Send_Payment_countdown_Or_fail:[],
-            self.KindFEILOLIcmd.Send_Starting_once_game: [0xBB, 0x73, 0x01, 0x02, 0x01],
+            # #啟動遊戲
+            # self.KindFEILOLIcmd.Send_Starting_once_game: [0xBB, 0x73, 0x01, 0x02, 0x01],
             self.KindFEILOLIcmd.Ask_Transaction_account: [0xBB, 0x73, 0x02, 0x01, 0x00],
             #清除遠端帳目(注意參數位置要特別處裡)
             #self.KindFEILOLIcmd.Send_Clean_transaction_account: [0xBB, 0x73, 0x02, 0x01, 0x00],
@@ -45,8 +46,23 @@ class UartManager:
             #Ask_Machine_setting
         }
 
+        #啟動遊戲
+        if command == self.KindFEILOLIcmd.Send_Starting_once_game:
+            packet = bytearray([0xBB, 0x73, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00,
+                                0x00, 0x00, 0x00, 0x00, 0x00, self.packet_id, 0x00, 0xAA])
+            if parameters:
+                for key, value in parameters.items():
+                    if key in ['epays', 'freeplays']:
+                        index = 5 if key == 'epays' else 6
+                        packet[index] = value
+            for i in range(2, 14):
+                packet[15] ^= packet[i]
+            self.uart_FEILOLI.write(packet)
+            print(f"Sent packet to 娃娃機: {self._format_packet(packet)}")
+            return
+
         #機台設定(馬達轉速 )
-        if command == self.KindFEILOLIcmd.Ask_Machine_setting:
+        elif command == self.KindFEILOLIcmd.Ask_Machine_setting:
             if parameters and parameters in self.uart_handler.clawsettingdict:
                 setting_code = self.uart_handler.clawsettingdict[parameters]
                 # packet =  bytearray([0xBB, 0x73, 0x03, 0x01, setting_code] + [0x00] * 8 + [self.packet_id, 0x00, 0xAA])
@@ -70,7 +86,7 @@ class UartManager:
                 return
 
 
-        if command in packet_map:
+        elif command in packet_map:
             packet = bytearray(packet_map[command] + [0x00] * 8 + [self.packet_id, 0x00, 0xAA])
 
             # 計算 XOR 校驗碼
@@ -80,6 +96,8 @@ class UartManager:
             # 寫入 UART
             self.uart_FEILOLI.write(packet)
             print(f"Sent packet to 娃娃機: {self._format_packet(packet)}")
+        else:
+            print(f"未知的指令: {command}")
     
         #執行緒
     def receive_packet(self):
@@ -100,6 +118,7 @@ class UartManager:
                         # 沒資料就稍作休眠
                         print("DEBUG: No data received from UART")
                         utime.sleep_ms(100)  
+                utime.sleep_ms(50)  # 避免CPU被卡死
                 gc.collect()
             except Exception as e: 
                 #避免任何未預期讓整個執行緒退出
