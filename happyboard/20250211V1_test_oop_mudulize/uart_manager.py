@@ -22,7 +22,15 @@ class UartManager:
         self.mqtt_handler = mqtt_handler  # 讓 UART 也能直接發送 MQTT 訊息
         # 在UartManager __init__中添加
         self.rx_queue = []
-        #self.uart_lock = uart_lock
+        self.uart_lock = _thread.allocate_lock() #啟用互斥鎖
+
+        # 定義帳目與封包index對應
+        self.clawcleanitems_positions = {
+            'Epayplaytimes': 5,
+            'Giftplaytimes': 7,
+            'Coinplaytimes': 9,
+            'GiftOuttimes': 11,
+        }
 
     def send_packet(self, command, parameters=None):
         """發送 UART 指令至娃娃機"""
@@ -60,6 +68,37 @@ class UartManager:
             self.uart_FEILOLI.write(packet)
             print(f"Sent packet to 娃娃機: {self._format_packet(packet)}")
             return
+        elif command == self.KindFEILOLIcmd.Send_Clean_transaction_account:
+            # 初始化封包:以下是查詢:遠端帳目封包 只要是清除 該封包的位置就會是0x01 
+            packet = bytearray([
+                0xBB, 0x73, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, self.packet_id, 0x00, 0xAA
+            ])
+
+            if not parameters or set(parameters) == set(self.clawcleanitems_positions.keys()):
+
+                # 全部清除
+            ## 取出clawcleanitems_positions中定義的key值對應封包index
+                for pos in self.clawcleanitems_positions.values():
+                    #將該封包對應的index位置 寫入0x01代表清除該項目
+                    packet[pos] = 0x01
+            else:
+                # 部分清除(從MQTT驅動過來 傳入的參數)
+                for item in parameters:
+                    # 比對clawcleanitems_positions的key
+                    if item in self.clawcleanitems_positions:
+                        #透過key取得封包index 來寫入清除的cmd 0x01
+                        packet[self.clawcleanitems_positions[item]] = 0x01
+                    else:
+                        print(f"未知的封包清除項目: {item}")
+            # 計算 XOR 校驗碼
+            for i in range(2, 14):
+                packet[15] ^= packet[i]
+
+            self.uart_FEILOLI.write(packet)
+            print(f"Sent packet to 娃娃機 (Send_Clean_transaction_account - {parameters}): {self._format_packet(packet)}")
+            return
+
 
         #機台設定(馬達轉速 )
         elif command == self.KindFEILOLIcmd.Ask_Machine_setting:
@@ -109,7 +148,8 @@ class UartManager:
                 if self.uart_FEILOLI.any(): # 如果 UART 裝置有資料可讀，先把所有可讀資料一次讀完
                     receive_data = self.uart_FEILOLI.read()
                     if receive_data:
-                        self.rx_queue.extend(receive_data) #將 bytes append 進 rx_queue
+                        with self.uart_lock:  # 加入互斥鎖保護
+                            self.rx_queue.extend(receive_data) #將 bytes append 進 rx_queue
                         print(f"DEBUG: Received Raw Data 收到執行緒receive_packet: {receive_data}")
 
                         # 累積rx_queue佇列足夠後，就嘗試解析

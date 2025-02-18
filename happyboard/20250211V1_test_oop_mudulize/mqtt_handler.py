@@ -150,7 +150,7 @@ class MqttHandler:
         if account:
             self.publish_MQTT_claw_data("commandack-clawcleantransaccount", data.get("state"))
             self.uart_manager.send_packet(self.uart_manager.KindFEILOLIcmd.Send_Clean_transaction_account, account)
-            print(f"debug: 已發送clawcleantransaccount uart封包: {account}")
+            print(f"debug:[mqtt_handler] 已發送clawcleantransaccount uart封包: {account}")
         else:
             print(f"Invalid machine setting: {account}")
 
@@ -168,6 +168,9 @@ class MqttHandler:
         #先做嚴謹的api比對
         elif api == ("commandack-clawmachinesetting"):
             data = self.build_clawmachinesetting_data(self.claw_1, para1)
+        # elif api == ("commandack-clawcleantransaccount"):
+        #     data = self.handle_clawcleantransaccount_data(self.claw_1, para1)
+
         # elif api == ("commandack-fileinfo"):
         #     data = self.build_fileinfo_data(??)
         # elif api == ("commandack-fileremove"):
@@ -291,9 +294,22 @@ class MqttHandler:
             }
     
     ### 整合原本 helper 的數據處理函數  ###
+    # def handle_clawcleantransaccount_data(self, claw_1,para1):
+    #     if para1:
+    #         return {
+    #             "ack": ack_value,
+    #             "state": para1,
+    #             "time": utime.time()
+    #         }
+    #     else: 
+    #         return {
+    #             "ack": ack_value,
+    #             "time": utime.time()
+    #         }
     ## 發佈"commandack"為前綴的消息(回傳相關資料)
     def handle_ack_with_state(self, api_select, para1=""):
         ack_value = {
+            "commandack-clawcleantransaccount": "OK",
             "commandack-pong": "pong",
             "commandack-version": self.mqtt_manager.version,
             #"fotaack": "OK",
