@@ -14,7 +14,6 @@ from machine import UART, Timer, WDT
 #from machine import UART, Pin, SPI, Timer, WDT
 from umqtt.simple import MQTTClient
 #本地
-from uart_handler import UartHandler
 from uart_manager import UartManager
 from mqtt_manager import MqttManager
 from received_claw_data import ReceivedClawData
@@ -39,6 +38,7 @@ class MainStatus:
 
 # 定義狀態機類別
 class MainStateMachine:
+
     def __init__(self):
         self.state = MainStatus.NONE_WIFI
         # 以下執行"狀態機初始化"相應的操作
@@ -112,7 +112,6 @@ class MainStateMachine:
 
 
 
-print("debug flag 1")
 #==============
 # InternetData() class不再使用
 # 改成network_info['ip'],network_info['mac']
@@ -229,7 +228,7 @@ def get_file_info(filename):
 #             print(f"MQTT發佈失敗: {e}")
 
 
-print("debug flag 2")
+
 class KindFEILOLIcmd:
     Ask_Machine_status = 210
     Send_Machine_reboot = 215
@@ -245,104 +244,104 @@ class KindFEILOLIcmd:
     Ask_Machine_setting = 431
 
 
-# # 发送封包給娃娃機的副程式
-# FEILOLI_packet_id = 0
+# 发送封包給娃娃機的副程式
+FEILOLI_packet_id = 0
 
-# # 機台設定封包:index[4]
-# clawsettingdict = {
-#     "BasicsettingA": 0x00,
-#     "BasicsettingB": 0x01,
-#     "BasicsettingC": 0x02,
-#     "Clawvoltage": 0x03,#抓力電壓
-#     "Motorspeed": 0x04,
-# }
+# 機台設定封包:index[4]
+clawsettingdict = {
+    "BasicsettingA": 0x00,
+    "BasicsettingB": 0x01,
+    "BasicsettingC": 0x02,
+    "Clawvoltage": 0x03,#抓力電壓
+    "Motorspeed": 0x04,
+}
 
 
-# #　uart功能待優化
-# def uart_FEILOLI_send_packet(FEILOLI_cmd, new_parameters=None):
-#     global FEILOLI_packet_id, clawsettingdict
-#     FEILOLI_packet_id = (FEILOLI_packet_id + 1) % 256
-#     if FEILOLI_cmd == KindFEILOLIcmd.Ask_Machine_status:
-#         uart_send_packet = bytearray([0xBB, 0x73, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00,
-#                                       0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
-#     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Machine_reboot:
-#         uart_send_packet = bytearray([0xBB, 0x73, 0x01, 0x01, 0x05, 0x00, 0x00, 0x00,
-#                                       0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
-#     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Machine_shutdown:
-#         pass
-#     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Payment_countdown_Or_fail:
-#         pass
-#     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Starting_once_game:
-#         # 初始化遊戲啟動封包
-#         uart_send_packet = bytearray([
-#             0xBB, 0x73, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00,
-#             0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA
-#         ])
+#　uart功能待優化
+def uart_FEILOLI_send_packet(FEILOLI_cmd, new_parameters=None):
+    global FEILOLI_packet_id, clawsettingdict
+    FEILOLI_packet_id = (FEILOLI_packet_id + 1) % 256
+    if FEILOLI_cmd == KindFEILOLIcmd.Ask_Machine_status:
+        uart_send_packet = bytearray([0xBB, 0x73, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00,
+                                      0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
+    elif FEILOLI_cmd == KindFEILOLIcmd.Send_Machine_reboot:
+        uart_send_packet = bytearray([0xBB, 0x73, 0x01, 0x01, 0x05, 0x00, 0x00, 0x00,
+                                      0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
+    elif FEILOLI_cmd == KindFEILOLIcmd.Send_Machine_shutdown:
+        pass
+    elif FEILOLI_cmd == KindFEILOLIcmd.Send_Payment_countdown_Or_fail:
+        pass
+    elif FEILOLI_cmd == KindFEILOLIcmd.Send_Starting_once_game:
+        # 初始化遊戲啟動封包
+        uart_send_packet = bytearray([
+            0xBB, 0x73, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA
+        ])
 
-#         # 如果沒有帶入參數是None，遊戲啟動一次
-#         if new_parameters is None:
-#             uart_send_packet[5] = 0x01  # 默認啟動次數1次
-#         else:
-#             # 定義啟動次數 啟動贈局數 與封包index對應
-#             clawitems_positions = {
-#                 'epays': 5,       # 啟動次數對應封包索引
-#                 'freeplays': 6    # 贈局數對應封包索引
-#             }
-#             for key, value in new_parameters.items():
-#                 if key in clawitems_positions:
-#                     uart_send_packet[clawitems_positions[key]] = value
+        # 如果沒有帶入參數是None，遊戲啟動一次
+        if new_parameters is None:
+            uart_send_packet[5] = 0x01  # 默認啟動次數1次
+        else:
+            # 定義啟動次數 啟動贈局數 與封包index對應
+            clawitems_positions = {
+                'epays': 5,       # 啟動次數對應封包索引
+                'freeplays': 6    # 贈局數對應封包索引
+            }
+            for key, value in new_parameters.items():
+                if key in clawitems_positions:
+                    uart_send_packet[clawitems_positions[key]] = value
                     
-#     elif FEILOLI_cmd == KindFEILOLIcmd.Ask_Transaction_account: #查詢:遠端帳目
-#         uart_send_packet = bytearray([0xBB, 0x73, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
-#                                       0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
-#     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Clean_transaction_account: #清除:遠端帳目
-#         # 初始化封包:以下是查詢:遠端帳目封包 只要是清除 該封包的位置就會是0x01 
-#         uart_send_packet = bytearray([
-#             0xBB, 0x73, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
-#             0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA
-#         ])
+    elif FEILOLI_cmd == KindFEILOLIcmd.Ask_Transaction_account: #查詢:遠端帳目
+        uart_send_packet = bytearray([0xBB, 0x73, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
+                                      0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
+    elif FEILOLI_cmd == KindFEILOLIcmd.Send_Clean_transaction_account: #清除:遠端帳目
+        # 初始化封包:以下是查詢:遠端帳目封包 只要是清除 該封包的位置就會是0x01 
+        uart_send_packet = bytearray([
+            0xBB, 0x73, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA
+        ])
 
-#         # 定義帳目與封包index對應
-#         clawcleanitems_positions = {
-#             'Epayplaytimes': 5,
-#             'Giftplaytimes': 7,
-#             'Coinplaytimes': 9,
-#             'GiftOuttimes': 11,
-#         }
+        # 定義帳目與封包index對應
+        clawcleanitems_positions = {
+            'Epayplaytimes': 5,
+            'Giftplaytimes': 7,
+            'Coinplaytimes': 9,
+            'GiftOuttimes': 11,
+        }
 
-#         if new_parameters is None or set(new_parameters) == set(clawcleanitems_positions.keys()):
-#             # 全部清除
-#             ## 取出clawcleanitems_positions中定義的key值對應封包index
-#             for pos in clawcleanitems_positions.values():
-#                 #將該封包對應的index位置 寫入0x01代表清除該項目
-#                 uart_send_packet[pos] = 0x01
-#         else:
-#             # 部分清除(從MQTT驅動過來 傳入的參數)
-#             for item in new_parameters:
-#                 # 比對clawcleanitems_positions的key
-#                 if item in clawcleanitems_positions:
-#                     #透過key取得封包index 來寫入清除的cmd 0x01
-#                     uart_send_packet[clawcleanitems_positions[item]] = 0x01
-#                 else:
-#                     print(f"未知的封包清除項目: {item}")
-#     #機台設定
-#     elif FEILOLI_cmd == KindFEILOLIcmd.Ask_Machine_setting: 
-#         if new_parameters:
-#             clawsettingitem = new_parameters
-#             uart_send_packet = bytearray([0xBB, 0x73, 0x03, 0x01, clawsettingdict[clawsettingitem], 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
-#     if uart_send_packet[13] == FEILOLI_packet_id:
-#         for i in range(2, 14):
-#             uart_send_packet[15] ^= uart_send_packet[i]
-#         uart_FEILOLI.write(uart_send_packet)
-#         print("Sent packet to 娃娃機:    ", ''.join(['{:02X} '.format(byte) for byte in uart_send_packet]))
-#     else:
-#         print("FEILOLI_cmd 是無效的指令:", FEILOLI_cmd)
+        if new_parameters is None or set(new_parameters) == set(clawcleanitems_positions.keys()):
+            # 全部清除
+            ## 取出clawcleanitems_positions中定義的key值對應封包index
+            for pos in clawcleanitems_positions.values():
+                #將該封包對應的index位置 寫入0x01代表清除該項目
+                uart_send_packet[pos] = 0x01
+        else:
+            # 部分清除(從MQTT驅動過來 傳入的參數)
+            for item in new_parameters:
+                # 比對clawcleanitems_positions的key
+                if item in clawcleanitems_positions:
+                    #透過key取得封包index 來寫入清除的cmd 0x01
+                    uart_send_packet[clawcleanitems_positions[item]] = 0x01
+                else:
+                    print(f"未知的封包清除項目: {item}")
+    #機台設定
+    elif FEILOLI_cmd == KindFEILOLIcmd.Ask_Machine_setting: 
+        if new_parameters:
+            clawsettingitem = new_parameters
+            uart_send_packet = bytearray([0xBB, 0x73, 0x03, 0x01, clawsettingdict[clawsettingitem], 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
+    if uart_send_packet[13] == FEILOLI_packet_id:
+        for i in range(2, 14):
+            uart_send_packet[15] ^= uart_send_packet[i]
+        uart_FEILOLI.write(uart_send_packet)
+        print("Sent packet to 娃娃機:    ", ''.join(['{:02X} '.format(byte) for byte in uart_send_packet]))
+    else:
+        print("FEILOLI_cmd 是無效的指令:", FEILOLI_cmd)
 
 
 # 定義最大佇列容量
 # MAX_RX_QUEUE_SIZE = 200
 # 建立佇列
-# uart_FEILOLI_rx_queue = []
+uart_FEILOLI_rx_queue = []
 
 # 從佇列中讀取資料的任務
 # global claw_1, uart_FEILOLI, clawsettingdict
@@ -442,12 +441,11 @@ class KindFEILOLIcmd:
 #                             continue
 #                 print("佇列收到無法對齊的封包:", bytearray(uart_recive_packet))
 #         utime.sleep_ms(100)                         # 休眠一小段時間，避免過度使用CPU資源
-print("debug flag 3")
+
 server_report_sales_period = 3*60  # 3分鐘 = 3*60 單位秒
 # server_report_sales_period = 10   # For快速測試
 server_report_sales_counter = server_report_sales_period - 30 # 開機後第一次送MQTT會縮短到30秒
-
-print("debug flag 4")
+ 
 # 定義server_report計時器回調函式 (每1秒執行1次)
 def server_report_timer_callback(timer):
     global wdt, mq_client_1
@@ -476,10 +474,9 @@ def server_report_timer_callback(timer):
         
             wdt.feed()
             if now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI :
-                # def publish_MQTT_claw_data(self, api, para1="")
-                mqtt_handler.publish_MQTT_claw_data('sales')
+                mqtt_handler.publish_MQTT_claw_data(claw_1, 'sales')
             # if claw_1.Error_Code_of_Machine != 0x00 :
-            mqtt_handler.publish_MQTT_claw_data('status')
+            mqtt_handler.publish_MQTT_claw_data(claw_1, 'status')
 
 # 定義claw_check計時器回調函式
 counter_of_WAITING_FEILOLI = 0
@@ -487,13 +484,11 @@ def claw_check_timer_callback(timer):
     global counter_of_WAITING_FEILOLI
     if now_main_state.state == MainStatus.NONE_FEILOLI:
         print("Updating 娃娃機 機台狀態 ...")
-        #uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Machine_status)
-        uart_manager.send_packet(KindFEILOLIcmd.Ask_Machine_status)
+        uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Machine_status)
 
     elif now_main_state.state == MainStatus.STANDBY_FEILOLI:
         print("Updating 娃娃機 遠端帳目、投幣帳目 ...")
-        #uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Transaction_account)
-        uart_manager.send_packet(KindFEILOLIcmd.Ask_Transaction_account)
+        uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Transaction_account)
         # uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Coin_account)
         now_main_state.transition('FEILOLI UART is waiting')
         counter_of_WAITING_FEILOLI = 0
@@ -505,9 +500,8 @@ def claw_check_timer_callback(timer):
                 print("Updating 娃娃機 失敗 ...")
                 now_main_state.transition('FEILOLI UART is not OK')
             print("Updating 娃娃機 機台狀態 ...")
-            #uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Machine_status)
-            uart_manager.send_packet(KindFEILOLIcmd.Ask_Machine_status)
-
+            uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Machine_status)
+            
 
 # 定義LCD_update計時器回調函式
 def LCD_update_timer_callback(timer):
@@ -591,7 +585,6 @@ wdt=WDT(timeout=1000*60*10)
 
 print('2開機秒數:', utime.ticks_ms() / 1000)
 
-# 可以獨立
 LCD_update_flag = {
     'Uniform': True,
     'WiFi': False,
@@ -614,41 +607,21 @@ claw_1 = ReceivedClawData()
 # 創建 MQTT Client 1 資料
 mq_client_1 = None
 
-
-
-#uart_FEILOLI = UART(2, baudrate=19200, tx=17, rx=16)
-
-# mqtt_manager, claw_1, uart_FEILOLI_send_packet
-#mqtt_handler = MqttHandler(mqtt_manager,claw_1,uart_FEILOLI_send_packet)
-
-
 #==============
 # # UART配置(改成初始化UART阜口)
 # 涵蓋娃娃機參數 UART類別 KindFEILOLIcmd類別
 # KindFEILOLIcmd先用參數傳遞(娃娃機指令)
 # claw_1 也先用參數傳遞(娃娃機數據)
-#創建 UART Handler，讓它持有 `mqtt_handler`
 #==============
-#uart_handler = UartHandler(claw_1, mqtt_manager.mqtt_handler)
-print("debug: [Step 1: 初始化 UART Handler]")
-uart_handler = UartHandler(claw_1, None, LCD_update_flag, now_main_state) # 先設為 None，稍後補齊
+uart_manager = UartManager(
+    claw_1=claw_1,
+    KindFEILOLIcmd=KindFEILOLIcmd
+)
 
-# uart_manager = UartManager(claw_1=claw_1,
-#     KindFEILOLIcmd=KindFEILOLIcmd,
-#     uart_handler=uart_handler,
-#     mqtt_handler=mqtt_manager.mqtt_handler)
-print("debug: [Step 2: 初始化 UART Manager]")
-uart_manager = UartManager(claw_1=claw_1,
-    KindFEILOLIcmd=KindFEILOLIcmd,
-    uart_handler=uart_handler,
-    mqtt_handler=None) # 先設為 None，避免循環依賴) 
-# 創建 MQTT 訊息處理器(函式方法)
-# handler = MQTTHandler(mqtt_manager, claw_1, uart_FEILOLI.write)
-
-#把 `uart_manager` 也回傳給 `mqtt_manager`（這樣 MQTT 也能發送 UART 指令）
+#uart_FEILOLI = UART(2, baudrate=19200, tx=17, rx=16)
 
 #==============
-# 1.mqtt_manager初始化(已含toke取得)
+# mqtt初始化(已含toke取得)
 # 涵蓋娃娃機參數 UART類別 KindFEILOLIcmd類別
 #==============
 print(f"wifi_manager: {wifi_manager}")  # 檢查 wifi_manager 是否有值
@@ -664,33 +637,19 @@ print(network_info["mac"])
 #     wifi_manager=wifi_manager,
 # )
 #要測試UART_MANAGEr
-print("debug: [Step 3: 初始化 MQTT Manager | MqttHandler也在其中初始化]")
 mqtt_manager = MqttManager(
     mac_id=network_info["mac"],
     claw_1=claw_1,
+    uart_manager=uart_manager,
     KindFEILOLIcmd=KindFEILOLIcmd,
     version=VERSION,
     wifi_manager=wifi_manager,
-    uart_manager=uart_manager
 )
+# mqtt_manager, claw_1, uart_FEILOLI_send_packet
+#mqtt_handler = MqttHandler(mqtt_manager,claw_1,uart_FEILOLI_send_packet)
 
-print("debug: [Step 4: 解決相互依賴]")
-micropython.mem_info()
-## 這時候 `mqtt_manager` 已經初始化完畢，直接取出 `mqtt_manager.mqtt_handler`
-mqtt_handler = mqtt_manager.mqtt_handler  # 直接用 `MqttManager` 內建的 `MqttHandler`
-
-# 設定 MQTT Handler 到 UART Manager
-uart_manager.mqtt_handler = mqtt_handler
-
-# 設定 MQTT Handler 到 UART Handler
-uart_handler.mqtt_handler = mqtt_handler
-
-# 設定 UART Manager 到 MQTT Manager
-mqtt_manager.uart_manager = uart_manager
-
-#print("Step 5: MQTT 訂閱主題")
-#mqtt_manager.subscribe_topics()  # 確保這時候 `MqttHandler` 已經準備好
-## mqtt_manager先預留參數 等 `uart_manager` 建立後，再補充
+# 創建 MQTT 訊息處理器(函式方法)
+# handler = MQTTHandler(mqtt_manager, claw_1, uart_FEILOLI.write)
 
 # # 設置 MQTT 訂閱回調函數
 # mqtt_manager.set_callback(handler.process_message)
@@ -702,26 +661,7 @@ LCD_update_timer = Timer(2)
 # 建立並執行uart_FEILOLI_recive_packet_task
 #_thread.start_new_thread(uart_FEILOLI_recive_packet_task, ())
 #使用物件導向
-# 主執行緒任務
-# def thread_task():
-#     while True:
-#         with uart_manager.uart_lock:
-#             gc.collect()
-#             uart_manager.receive_packet()
-#             gc.collect()
-gc.collect()
-print("執行緒開始")
-_thread.stack_size(16 * 1024)  # 只需設置一次
-micropython.mem_info() 
 _thread.start_new_thread(uart_manager.receive_packet, ())
-#_thread.start_new_thread(thread_task, ())
-print("debug: [啟動執行緒]:", _thread.get_ident())#get_ident() 可以獲得目前執行緒的 ID，若成功啟動會顯示執行緒編號
-utime.sleep(2) 
-# print("debug: [UART 設定]", uart_manager.uart_FEILOLI)
-
-# print("debug: [UART TX]", uart_manager.uart_FEILOLI.tx, "UART RX:", uart_manager.uart_FEILOLI.rx)
-print("debug: [UART 設定]", uart_manager.uart_FEILOLI)
-
 
 # 設定server_report計時器的間隔和回調函式
 TIMER_INTERVAL = 1000  # 設定1秒鐘 = 1000（單位：毫秒）
@@ -775,8 +715,6 @@ while True:
             if mq_client_1 is not None:
                 try:
                     #subscribe_MQTT_claw_topic()
-                    print("debug: [Step 5: MQTT 訂閱主題]")
-                    ## 確保這時候 `MqttHandler` 已經準備好
                     mqtt_manager.subscribe_topics()
                     now_main_state.transition('MQTT is OK')
                 except:

@@ -13,10 +13,10 @@ class MqttManager:
             user="myuser",
             password="propskymqtt",
             claw_1=None,
-            uart_FEILOLI_send_packet=None,
             KindFEILOLIcmd=None,
             version=None,
             wifi_manager="wifi_manager",
+            uart_manager='uart_manager'
             ):
         
         """ 初始化 MQTT Manager """
@@ -29,18 +29,27 @@ class MqttManager:
 
         # 娃娃機與 UART 發送函式
         self.claw_1 = claw_1
-        self.uart_FEILOLI_send_packet = uart_FEILOLI_send_packet
+        # self.uart_FEILOLI_send_packet = uart_FEILOLI_send_packet
         self.KindFEILOLIcmd = KindFEILOLIcmd
 
         #儲存wifi強度訊號
         self.version = version
-        print(f"Debug: MqttManager received version={self.version}")
+        #print(f"Debug: MqttManager received version={self.version}")
         self.wifi_manager = wifi_manager
 
         #直接在這裡初始化MqttHandler實例 處理mqtt訂閱的消息後再發佈的邏輯 (不需要再主程式中實例化了)
         #而這裡的self指的就是MqttManager
-        self.mqtt_handler = MqttHandler(self, claw_1, uart_FEILOLI_send_packet)
+        
+        #self.mqtt_handler = MqttHandler(self, claw_1, uart_FEILOLI_send_packet)
+        
+        #class MqttHandler:def __init__(self, mqtt_manager, claw_1, uart_manager)
 
+
+        # 傳入`uart_manager` 
+        self.uart_manager = uart_manager
+
+        #這裡直接初始化 mqtt_handler 再將uart_manager傳入
+        self.mqtt_handler = MqttHandler(self, self.claw_1, self.uart_manager, self.wifi_manager)
 
     def load_token(self):
         """從 token.dat讀取token"""
@@ -133,7 +142,7 @@ class MqttManager:
             ## 取得 topic 前綴
             mq_topic_prefix = f"{self.mac_id}/{self.token}"
 
-            #  **防止無限循環**(需要這行不然會出現遞迴)
+            #  **防止無限循環**(需要這行不然會出現遞迴#)
             if topic.decode().startswith(mq_topic_prefix + "/commandack"):
                 print("跳過自己訂閱自己的訊息")
                 return  # 直接返回，不處理這個訊息
@@ -146,7 +155,7 @@ class MqttManager:
             elif topic.decode() == f"{mq_topic_prefix}/commands":
                 #這裡就可以調用mqtt_handler 中的方法了
                 self.mqtt_handler.process_commands(data)
-                print(f"debug: 有完成發送MQTT主題")
+                print(f"debug: 有完成發送MQTT主題:{data}")
             else:
                 print(f"收到未知 topic: {topic.decode()}")
         # except ValueError as ve:
