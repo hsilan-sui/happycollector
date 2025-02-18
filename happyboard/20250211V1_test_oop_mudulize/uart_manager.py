@@ -31,7 +31,7 @@ class UartManager:
             'Coinplaytimes': 9,
             'GiftOuttimes': 11,
         }
-
+    # 待重購一下
     def send_packet(self, command, parameters=None):
         """發送 UART 指令至娃娃機"""
         self.packet_id = (self.packet_id + 1) % 256  # 封包 ID 遞增
@@ -43,7 +43,7 @@ class UartManager:
             self.KindFEILOLIcmd.Send_Machine_reboot: [0xBB, 0x73, 0x01, 0x01, 0x05],
             # self.KindFEILOLIcmd.Send_Machine_shutdown: [],
             #self.KindFEILOLIcmd.Send_Payment_countdown_Or_fail:[],
-            # #啟動遊戲
+            # #啟動遊戲(注意參數位置要特別處裡)
             # self.KindFEILOLIcmd.Send_Starting_once_game: [0xBB, 0x73, 0x01, 0x02, 0x01],
             self.KindFEILOLIcmd.Ask_Transaction_account: [0xBB, 0x73, 0x02, 0x01, 0x00],
             #清除遠端帳目(注意參數位置要特別處裡)

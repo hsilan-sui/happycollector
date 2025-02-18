@@ -131,7 +131,7 @@ class MqttHandler:
     
     def handle_clawreboot(self,data):
         self.publish_MQTT_claw_data("commandack-clawreboot", data.get("state"))
-        self.uart_manager.send_packet(self.KindFEILOLIcmd.Send_Machine_reboot)
+        self.uart_manager.send_packet(self.uart_manager.KindFEILOLIcmd.Send_Machine_reboot)
         print(f"debug: 發送uart封包給娃娃機了:clawreboot")
 
 
