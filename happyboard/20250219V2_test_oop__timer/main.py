@@ -131,12 +131,12 @@ lcd_mgr.show()
 # 增加多個NTP伺服器選項(失敗就會跳下一個嘗試)
 def tw_ntp(must=False):
     ntp_servers = [
-        # "clock.stdtime.gov.tw", 
-        # "time.stdtime.gov.tw",
-        # "watch.stdtime.gov.tw", 
-        # "tick.stdtime.gov.tw", 
-        # "pool.ntp.org",  # 全球可用 NTP 伺服器 test ok
-        # "time.google.com" #Google NTP 伺服器，全球適用 
+        "clock.stdtime.gov.tw", 
+        "time.stdtime.gov.tw",
+        "watch.stdtime.gov.tw", 
+        "tick.stdtime.gov.tw", 
+        "pool.ntp.org",  # 全球可用 NTP 伺服器 test ok
+        "time.google.com" #Google NTP 伺服器，全球適用 
     ]  
     ntptime.NTP_DELTA = 3155673600 # UTC+8 的 magic number
     #3155673600 秒 = UTC+8 的時間修正值（因為 MicroPython 預設 NTP 是 UTC 1970 年）

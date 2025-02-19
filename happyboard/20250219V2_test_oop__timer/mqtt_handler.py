@@ -25,7 +25,10 @@ class MqttHandler:
         try:
             if 'file_list' in data and 'password' in data:
                 if data['password'] == 'c0b82a2c-4b03-42a5-92cd-3478798b2a90':
+                    ## 當 ESP32 確認收到 FOTA 指令，會透過 MQTT 發布 "fotaack"
+                    ## 這讓 伺服器或 MQTT Broker 知道 ESP32 準備開始更新
                     self.publish_MQTT_claw_data("fotaack")
+
                     with open(otafile, 'w') as f:
                         f.write(''.join(data['file_list']))
                     print("FOTA file saved. Rebooting...")
@@ -33,11 +36,11 @@ class MqttHandler:
                     import machine
                     machine.reset()
                 else:
-                    print("Invalid FOTA password")
+                    print("debug:[process_fota] Invalid FOTA password")
             else:
-                print("Incomplete FOTA data received")
+                print("debug:[process_fota] Incomplete FOTA data received")
         except Exception as e:
-            print(f"Error handling FOTA: {e}")
+            print(f"debug:[process_fota] Error handling FOTA: {e}")
     # 先處理commands
     def process_commands(self, data):
         """ 專門處理 接收到 /commands 的訊息 並進行下一步"""
