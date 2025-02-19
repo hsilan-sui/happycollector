@@ -190,21 +190,21 @@ if filename in file_list:
       print(f"hi ota prepare5 {file_list}")
 
       # 執行ota 
-      OTA = senko.Senko(
-          user="hsilan-sui",  # Required
-          repo="happycollector",  # Required
-          branch="Sui_Branch",  # Optional: Defaults to "master"
-          working_dir="happyboard/20250219V2_test_oop__timer",  # Optional: Defaults to "app"
-          # "happyboard/20230524V1"
-          files=file_list
-      )
     #   OTA = senko.Senko(
-    #       user="pc0808f",  # Required
+    #       user="hsilan-sui",  # Required
     #       repo="happycollector",  # Required
-    #       branch="alpha",  # Optional: Defaults to "master"
-    #       working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
+    #       branch="Sui_Branch",  # Optional: Defaults to "master"
+    #       working_dir="happyboard/20250219V2_test_oop__timer",  # Optional: Defaults to "app"
+    #       # "happyboard/20230524V1"
     #       files=file_list
     #   )
+      OTA = senko.Senko(
+          user="pc0808f",  # Required
+          repo="happycollector",  # Required
+          branch="alpha",  # Optional: Defaults to "master"
+          working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
+          files=file_list
+      )
      
       print(f"hi ota prepare6 {file_list}")
       if OTA.update():

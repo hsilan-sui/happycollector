@@ -149,14 +149,14 @@ class MqttHandler:
         #先做嚴謹的api比對
         elif api == ("commandack-clawmachinesetting"):
             data = self.build_clawmachinesetting_data(self.claw_1, para1)
-        # elif api == ("commandack-clawcleantransaccount"):
+        #elif api == ("commandack-clawcleantransaccount"):
         #     data = self.handle_clawcleantransaccount_data(self.claw_1, para1)
 
         # elif api == ("commandack-fileinfo"):
         #     data = self.build_fileinfo_data(??)
         # elif api == ("commandack-fileremove"):
         #     data = self.build_fileremove_data(??)   
-        elif api.startswith("commandack"): #剩下的前綴api都在這裡做處理
+        elif api.startswith("commandack") or api == ('fotaack'): #剩下的前綴api都在這裡做處理
             data = self.handle_ack_with_state(api, para1)
         else:
             print(f"無此MQTT發佈的API: {api}")
@@ -293,7 +293,7 @@ class MqttHandler:
             "commandack-clawcleantransaccount": "OK",
             "commandack-pong": "pong",
             "commandack-version": self.mqtt_manager.version,
-            #"fotaack": "OK",
+            "fotaack": "OK",
         }.get(api_select, "OK")
         
         if para1:
