@@ -6,7 +6,7 @@ micropython.mem_info()
 #import wifimgr
 from utime import sleep
 #import machine
-import senko
+#import senko
 import os
 #from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin, WDT
@@ -22,7 +22,7 @@ CP = Pin(0, Pin.OUT)
 CE = Pin(0, Pin.OUT)
 PL = Pin(32, Pin.OUT)
 Q7 = Pin(33, Pin.IN)
- 
+
 
 #led = Pin(2, Pin.OUT)
 LCD_EN = Pin(27, Pin.OUT, value=1)#第三個參數是預設輸出電 #LCD_EN.value(1)
@@ -180,6 +180,7 @@ if filename in file_list:
     print(gc.mem_free())
     # 在這邊要做讀取OTA列表，然後進行OTA的執行
     print("OTA檔案存在")
+    import senko
     lcd_mgr.draw_text(0 , 16 * 3, text="OTAing...")
     lcd_mgr.show()
     #debug test
@@ -191,7 +192,7 @@ if filename in file_list:
       # 移除字串中的雙引號和空格，然後使用逗號分隔字串
       file_list = [file.strip('"') for file in lines.split(',')]
 
-      # 執行ota 
+      # Senko初始化 執行ota 
       OTA = senko.Senko(
           user="hsilan-sui",  # Required
           repo="happycollector",  # Required
@@ -209,7 +210,7 @@ if filename in file_list:
     #   )
 
       gc.collect()
-      print(f"hi ota prepare6 {file_list}, {gc.mem_free()}")
+      print(f"Debugger:[main] 要進Senko {file_list}, {gc.mem_free()}")
       if OTA.update():
           print("Updated to the latest version! Rebooting...")
           os.remove(filename)

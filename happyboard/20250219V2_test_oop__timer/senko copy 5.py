@@ -34,28 +34,10 @@ class Senko:
         x = x_hash.digest()
         y = y_hash.digest()
 
-        ## 取的比對結果
-        result = (str(x) == str(y))
-        # if str(x) == str(y):
-        #     return True #比對 SHA1 是否相同，如果不同代表程式碼有變更，需要更新
-        # else:
-        #     return False
-        print(f"Debugger:[_check_hash] x,y哈希值:{x_hash}，記憶體:{gc.mem_free()}")
-        #回收哈希值
-        del x_hash, y_hash, x, y
-        gc.collect()
-        print(f"Debugger:[_check_hash] 刪除x,y哈希值{result}，記憶體:{gc.mem_free()}")
-        return result
-
-
-        # 這裡的x, y在實際調用時，會傳參 latest_version 和 local_version
-        # 函式裡面又對這兩個參數做x_hash  y_hash 
-        # 但這個.check_hash()函式 我們只需要知道TURE OR FALSE 因此要刪除 x_hash 和y_hash
-        # 後續的gc.collect()才有效果
-        # if str(x) == str(y):
-        #     return True #比對 SHA1 是否相同，如果不同代表程式碼有變更，需要更新
-        # else:
-        #     return False
+        if str(x) == str(y):
+            return True #比對 SHA1 是否相同，如果不同代表程式碼有變更，需要更新
+        else:
+            return False
 
     def _get_file(self, url):
         # =======
@@ -73,7 +55,7 @@ class Senko:
         #print(gc.mem_free())
         if code == 200:
             data = payload.text
-            print(f"Debugger:[_get_file] status(200)")
+            print(f"Debugger:[_get_file] status(200) {data}")
             return data #回傳文字內容（程式碼）
         else:
             print(f"Debugger:[_get_file] 無法取得 {url}，回傳 None")
@@ -148,19 +130,14 @@ class Senko:
                 local_version = ""
                 print(f'Debugger:[senko._check_all] {file} 目前local_version為空')
 
-            #### 這裡調用了._check_hash(latest_version, local_version)
             if not self._check_hash(latest_version, local_version):
                 changes.append(file) #如果 不同，代表有變更，加入 changes 清單
                 print(f'Debugger:[senko._check_all] 目前已加入changes清單，有 {changes} ')
-            else:
-                 # **清空 latest_version 和 local_version**
-                print(f"Debugger:[latest_version與local_version & gc以前] 遠端和本地檔案內容一致，記憶體:{gc.mem_free()}")
-                gc.collect()
-                print(f"Debugger:[latest_version與local_version& gc以後] 遠端和本地檔案內容一致，無須更新，不用重啟，記憶體:{gc.mem_free()}")
+            print(f"Debugger:[latest_version與local_version] 比對後，記憶體:{gc.mem_free()}")
             ## 
             # 釋放記憶體
             gc.collect()
-            print(f"Debugger:[gc後]:{gc.mem_free()}")
+            print(f"Debugger:[gc後]:{gc.mem_free()}，要重頭去跑下一個迴圈")
         return changes
 
 
@@ -179,8 +156,6 @@ class Senko:
         changes = self._check_all() #呼叫 _check_all() 找出需要更新的檔案
         gc.collect()
         print(f'Debugger[senko.update] memory_data: {gc.mem_free()}') 
-
-        #這裡指的是 如果有changes回傳 沒有就代表無須更新 遠端檔案 與本地檔案一致
         for file in changes: #逐一下載 GitHub 最新版本並覆蓋 ESP32 上的舊版本
             with open(file, "w") as local_file:
                 local_file.write(self._get_file(self.url + "/" + file))
@@ -189,5 +164,4 @@ class Senko:
         if changes:
             return True
         else:
-            print(f'Debugger[senko.update] 遠端檔案 和本地檔案 一致 無須更新') 
             return False
