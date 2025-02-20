@@ -271,8 +271,8 @@ utime.sleep(2)
 # 執行timer callback
 # =========================
 timer_manager.start_timers()
-print("Debugger:[start Timer] 記憶體:")
-micropython.mem_info()
+# print("Debugger:[start Timer] 記憶體:")
+# micropython.mem_info()
 
 
 last_time = 0
@@ -299,9 +299,10 @@ while True:
             print("My MAC Address:", network_info['mac'])
             # print("My IP Address:", my_internet_data.ip_address)
             # print("My MAC Address:", my_internet_data.mac_address)
-            now_main_state.transition('WiFi is OK')
             print("Debugger:[NONE_WIFI] 記憶體:")
             micropython.mem_info()
+            now_main_state.transition('WiFi is OK')
+            
 
         elif now_main_state.state == MainStatus.NONE_INTERNET:
             print('\n\rnow_main_state: WiFi is OK, 開機秒數:', current_time / 1000)
@@ -322,46 +323,37 @@ while True:
             if mq_client_1 is not None:
                 try:
                     #subscribe_MQTT_claw_topic()
-                    print("debug: [Step 5: MQTT 訂閱主題]")
+                    #print("debug: [Step 5: MQTT 訂閱主題]")
                     ## 確保這時候 `MqttHandler` 已經準備好
                     # debug :是否直接在.connect_mqtt中處理好?
-                    mqtt_manager.subscribe_topics()
+                    #mqtt_manager.subscribe_topics()
                     now_main_state.transition('MQTT is OK')
                 except:
                     print('MQTT subscription has failed')
             gc.collect()
             print(gc.mem_free())
-            print("Debugger:[NONE_MQTT] 記憶體:")
-            micropython.mem_info()
 
         elif now_main_state.state == MainStatus.NONE_FEILOLI:
             print('\n\rnow_main_state: MQTT is OK (FEILOLI UART is not OK), 開機秒數:', current_time / 1000)
-           
             gc.collect()
             print(gc.mem_free())
-            print("Debugger:[NONE_FEILOLI] 記憶體:")
-            micropython.mem_info()
 
         elif now_main_state.state == MainStatus.STANDBY_FEILOLI:
             print('\n\rnow_main_state: FEILOLI UART is OK, 開機秒數:', current_time / 1000)
             gc.collect()
             print(gc.mem_free())
-            print("Debugger:[STANDBY_FEILOLI] 記憶體:")
-            micropython.mem_info()
 
         elif now_main_state.state == MainStatus.WAITING_FEILOLI:
             print('\n\rnow_main_state: FEILOLI UART is witing, 開機秒數:', current_time / 1000)
             gc.collect()
             print(gc.mem_free())
-            print("Debugger:[WAITING_FEILOLI] 記憶體:")
-            micropython.mem_info()
+            
 
         else:
             print('\n\rInvalid action! now_main_state:', now_main_state.state)
             print('開機秒數:', current_time / 1000)
             gc.collect()
-            print("Debugger:[Invalid action] 記憶體:")
-            micropython.mem_info()
+         
 
         LCD_update_flag['Time'] = True
     

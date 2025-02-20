@@ -78,6 +78,7 @@ class MqttManager:
                 self.client.connect()
                 print("MQTT broker connection OK!")
                 # debug :是否適合在這裡一次處理掉?
+                print("debug: [Step 5: MQTT 訂閱主題]")
                 self.subscribe_topics()  # 連線成功後訂閱主題
                 return True
             except Exception as e:
