@@ -300,6 +300,8 @@ while True:
             # print("My IP Address:", my_internet_data.ip_address)
             # print("My MAC Address:", my_internet_data.mac_address)
             now_main_state.transition('WiFi is OK')
+            print("Debugger:[NONE_WIFI] 記憶體:")
+            micropython.mem_info()
 
         elif now_main_state.state == MainStatus.NONE_INTERNET:
             print('\n\rnow_main_state: WiFi is OK, 開機秒數:', current_time / 1000)
@@ -329,26 +331,37 @@ while True:
                     print('MQTT subscription has failed')
             gc.collect()
             print(gc.mem_free())
+            print("Debugger:[NONE_MQTT] 記憶體:")
+            micropython.mem_info()
 
         elif now_main_state.state == MainStatus.NONE_FEILOLI:
             print('\n\rnow_main_state: MQTT is OK (FEILOLI UART is not OK), 開機秒數:', current_time / 1000)
            
             gc.collect()
             print(gc.mem_free())
+            print("Debugger:[NONE_FEILOLI] 記憶體:")
+            micropython.mem_info()
 
         elif now_main_state.state == MainStatus.STANDBY_FEILOLI:
             print('\n\rnow_main_state: FEILOLI UART is OK, 開機秒數:', current_time / 1000)
             gc.collect()
             print(gc.mem_free())
+            print("Debugger:[STANDBY_FEILOLI] 記憶體:")
+            micropython.mem_info()
 
         elif now_main_state.state == MainStatus.WAITING_FEILOLI:
             print('\n\rnow_main_state: FEILOLI UART is witing, 開機秒數:', current_time / 1000)
             gc.collect()
             print(gc.mem_free())
+            print("Debugger:[WAITING_FEILOLI] 記憶體:")
+            micropython.mem_info()
 
         else:
             print('\n\rInvalid action! now_main_state:', now_main_state.state)
             print('開機秒數:', current_time / 1000)
+            gc.collect()
+            print("Debugger:[Invalid action] 記憶體:")
+            micropython.mem_info()
 
         LCD_update_flag['Time'] = True
     
