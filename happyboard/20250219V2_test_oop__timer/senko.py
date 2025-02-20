@@ -94,8 +94,9 @@ class Senko:
             # =====
             index_times += 1
             
-            print(f'Debugger:[senko._check_all 迴圈跑到{file}]: 更新第: {index_times} 檔案')
+            print(f'Debugger:[senko._check_all 迴圈跑到{file}]  第: {index_times} 檔案，記憶體為：')
             micropython.mem_info()
+            ## 記憶體不夠用才會跑這裡 但即使gc後沒有60000 還是出不了這個while??
             while(gc.mem_free() < 60000): #確保記憶體夠用 (gc.mem_free() < 60000
                 # =====
                 # 打印整體記憶體資訊
@@ -107,12 +108,15 @@ class Senko:
                 micropython.mem_info()
                 sleep(1)
                 
-            print(f'Debugger:[senko._check_all] 準備下載 {file} 的latest_version')
+            print(f'Debugger:[senko._check_all] 準備下載 {file} 的latest_version，記憶體:')
+            micropython.mem_info()
             latest_version = self._get_file(self.url + "/" + file)  # 調用方法發送請求 下載 GitHub 上的最新版本程式碼    
             if latest_version is None:
                 print(f'Debugger:[senko._check_all]  {file} 沒有 latest_version')
                 continue
 
+            print(f'Debugger:[senko._check_all] 準備下載 {file} 的local_version，記憶體:')
+            micropython.mem_info()
             try:
                 with open(file, "r") as local_file: #讀取 ESP32 本地版本的相同檔案
                     local_version = local_file.read()
@@ -124,16 +128,11 @@ class Senko:
             if not self._check_hash(latest_version, local_version):
                 changes.append(file) #如果 不同，代表有變更，加入 changes 清單
                 print(f'Debugger:[senko._check_all] 目前已加入changes清單，有 {changes} ')
-            print(f"Debugger:[latest_version與local_version]尚未是空字串,記憶體:{gc.mem_free()}")
-            latest_version=""
-            local_version = ""
-            print(f"Debugger:[latest_version與local_version]已變成空字串,記憶體:{gc.mem_free()}")
+            print(f"Debugger:[latest_version與local_version] 比對後，記憶體:{gc.mem_free()}")
             ## 
             # 釋放記憶體
-            del latest_version, local_version
-            print(f"Debugger:[del後]:{gc.mem_free()}")
             gc.collect()
-            print(f"Debugger:[gc後]:{gc.mem_free()}")
+            print(f"Debugger:[gc後]:{gc.mem_free()}，要重頭去跑下一個迴圈")
         return changes
 
 
@@ -149,18 +148,9 @@ class Senko:
     #         return True
     # 執行 OTA 更新
     def update(self):
-        """Replace all changed files with newer one.
-
-        Returns:
-            True - if changes were made, False - if not.
-        """
         changes = self._check_all() #呼叫 _check_all() 找出需要更新的檔案
         gc.collect()
-        # =======
-        # 記憶體打印
-        # =====
-        print('Debugger[senko.update] memory_data') 
-        micropython.mem_info()
+        print(f'Debugger[senko.update] memory_data: {gc.mem_free()}') 
         for file in changes: #逐一下載 GitHub 最新版本並覆蓋 ESP32 上的舊版本
             with open(file, "w") as local_file:
                 local_file.write(self._get_file(self.url + "/" + file))

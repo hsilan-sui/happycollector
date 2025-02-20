@@ -107,12 +107,15 @@ class Senko:
                 micropython.mem_info()
                 sleep(1)
                 
-            print(f'Debugger:[senko._check_all] 準備下載 {file} 的latest_version')
+            print(f'Debugger:[senko._check_all] 準備下載 {file} 的latest_version，記憶體:')
+            micropython.mem_info()
             latest_version = self._get_file(self.url + "/" + file)  # 調用方法發送請求 下載 GitHub 上的最新版本程式碼    
             if latest_version is None:
                 print(f'Debugger:[senko._check_all]  {file} 沒有 latest_version')
                 continue
 
+            print(f'Debugger:[senko._check_all] 準備下載 {file} 的local_version，記憶體:')
+            micropython.mem_info()
             try:
                 with open(file, "r") as local_file: #讀取 ESP32 本地版本的相同檔案
                     local_version = local_file.read()
