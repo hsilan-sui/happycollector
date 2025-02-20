@@ -47,7 +47,7 @@ gc.collect()
 print(gc.mem_free())
 
 
-#　待優化為工具函式
+# #　待優化為工具函式
 def UDP_Load_Wifi():
     try:
         import usocket as socket
@@ -94,9 +94,11 @@ def UDP_Load_Wifi():
 
 if readKBData(1,CP,CE,PL,Q7)[0] == 0 :
     print("SW4被按下，進入UDP load wifi")
+    #from utils import UDP_Load_Wifi
     UDP_Load_Wifi()
 elif ESP32_TXD2_FEILOLI.value() == 0 :
     print("ESP32_TXD2_FEILOLI被拉Low，進入UDP load wifi")
+    #from utils import UDP_Load_Wifi
     UDP_Load_Wifi()
 
 
@@ -124,7 +126,7 @@ lcd_mgr.draw_text(0 , 16, text='SSID:')
 lcd_mgr.draw_text(5 * 8 , 16, text=wifi_manager.ssid)
 lcd_mgr.draw_text(0 , 16 * 2, text=network_info['ip'])
 lcd_mgr.show()
-
+print(gc.mem_free())
 # =============================
 # NTP伺服器與時間處理
 # =============================
@@ -171,8 +173,11 @@ filename = 'otalist.dat'
 # 取得目錄下的所有檔案和資料夾
 file_list = os.listdir()
 print(file_list)
+print(gc.mem_free())
 # 檢查檔案是否存在
 if filename in file_list:
+    gc.collect()
+    print(gc.mem_free())
     # 在這邊要做讀取OTA列表，然後進行OTA的執行
     print("OTA檔案存在")
     lcd_mgr.draw_text(0 , 16 * 3, text="OTAing...")
@@ -181,32 +186,30 @@ if filename in file_list:
     try:
       with open(filename) as f:
           lines = f.readlines()[0].strip()
-          print(f"hi ota prepare3 {lines}")
 
       lines = lines.replace(' ', '')
-      print(f"hi ota prepare4 {lines}")
       # 移除字串中的雙引號和空格，然後使用逗號分隔字串
       file_list = [file.strip('"') for file in lines.split(',')]
-      print(f"hi ota prepare5 {file_list}")
 
       # 執行ota 
-    #   OTA = senko.Senko(
-    #       user="hsilan-sui",  # Required
-    #       repo="happycollector",  # Required
-    #       branch="Sui_Branch",  # Optional: Defaults to "master"
-    #       working_dir="happyboard/20250219V2_test_oop__timer",  # Optional: Defaults to "app"
-    #       # "happyboard/20230524V1"
-    #       files=file_list
-    #   )
       OTA = senko.Senko(
-          user="pc0808f",  # Required
+          user="hsilan-sui",  # Required
           repo="happycollector",  # Required
-          branch="alpha",  # Optional: Defaults to "master"
-          working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
+          branch="Sui_Branch",  # Optional: Defaults to "master"
+          working_dir="happyboard/20250219V2_test_oop__timer",  # Optional: Defaults to "app"
+          # "happyboard/20230524V1"
           files=file_list
       )
-     
-      print(f"hi ota prepare6 {file_list}")
+    #   OTA = senko.Senko(
+    #       user="pc0808f",  # Required
+    #       repo="happycollector",  # Required
+    #       branch="alpha",  # Optional: Defaults to "master"
+    #       working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
+    #       files=file_list
+    #   )
+
+      gc.collect()
+      print(f"hi ota prepare6 {file_list}, {gc.mem_free()}")
       if OTA.update():
           print("Updated to the latest version! Rebooting...")
           os.remove(filename)
@@ -234,6 +237,7 @@ while True:
     gc.collect()
     try:
         print("執行Data_Collection_Main.py...")
+        print("Debugger:[main.py] 執行Data_Collection_Main.py之前記憶體:")
         micropython.mem_info()
         execfile('Data_Collection_Main.py')
     except Exception as e:

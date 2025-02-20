@@ -1,6 +1,7 @@
 VERSION = "V1.08c_sui"
 
 import micropython
+print("Debugger:[Data_Collection_Main] 首行，記憶體:")
 micropython.mem_info()
 #標準庫
 #import binascii
@@ -177,10 +178,13 @@ mq_client_1 = None
 #創建 UART Handler，讓它持有 `mqtt_handler`
 #==============
 #uart_handler = UartHandler(claw_1, mqtt_manager.mqtt_handler)
-print("debug: [Step 1: 初始化 UART Handler]")
+
+print("Debugger:[Step 1: 初始化 UART Handler] 記憶體:")
+micropython.mem_info()
 uart_handler = UartHandler(claw_1, None, LCD_update_flag, now_main_state) # 但先不設定 mqtt_handler=None
 
-print("debug: [Step 2: 初始化 UART Manager]")
+print("Debugger:[Step 2: 初始化 UART Manager] 記憶體:")
+micropython.mem_info()
 uart_manager = UartManager(claw_1=claw_1,
     KindFEILOLIcmd=KindFEILOLIcmd,
     uart_handler=uart_handler,
@@ -196,7 +200,8 @@ print(network_info["mac"])
 
 
 #要測試UART_MANAGEr
-print("debug: [Step 3: 初始化 MQTT Manager | MqttHandler也在其中初始化]")
+print("Debugger:[Step 3: 初始化 MQTT Manager | MqttHandler也在其中初始化] 記憶體:")
+micropython.mem_info()
 mqtt_manager = MqttManager(
     mac_id=network_info["mac"],
     claw_1=claw_1,
@@ -219,9 +224,10 @@ mqtt_manager = MqttManager(
 
     ## 物件導向的依賴注入：將物件之間的依賴在建構階段先「斷開」，等物件建立完成後再「手動綁定」，類似於「依賴注入 (Dependency Injection)」的概念
 #==============
-print("debug: [Step 4: 相互依賴解耦與物件關聯初始化]")
-gc.collect()
+print("Debugger:[Step 4: 相互依賴解耦與物件關聯初始化] 記憶體:")
 micropython.mem_info()
+gc.collect()
+
 ## ==============
 # 避免在初始化階段因物件還未建立好就被呼叫，導致 NoneType 錯誤。
 # 等到所有物件都建立完成後，再進行後設綁定，確保每個類別都能正確存取到其他類別的實體物件
@@ -238,7 +244,9 @@ uart_handler.mqtt_handler = mqtt_handler
 # 已有了uart_manager，，設定 UART Manager 到 MQTT Manager
 mqtt_manager.uart_manager = uart_manager
 
-
+gc.collect()
+print("Debugger:[初始化物件&gc後] 記憶體:")
+micropython.mem_info()
 #mq_client_1 = mqtt_manager.client
 # ========================
 # 初始化timer
@@ -246,14 +254,16 @@ mqtt_manager.uart_manager = uart_manager
 timer_manager = TimerManager(now_main_state, MainStatus, wifi_manager, uart_manager, mqtt_manager, mqtt_handler, lcd_mgr, wdt, LCD_update_flag, claw_1)
 
 gc.collect()
-print("執行緒開始")
+print("Debugger:[準備執行緒] 記憶體:")
+micropython.mem_info()
 #_thread.stack_size(8 * 1024)  # 只需設置一次
 _thread.stack_size(16 * 1024)  # 只需設置一次
 #_thread.stack_size(20 * 1024)  # 只需設置一次
-micropython.mem_info() 
 _thread.start_new_thread(uart_manager.receive_packet, ())
+print("Debugger:[開始執行緒] 記憶體:")
+micropython.mem_info()
 #_thread.start_new_thread(thread_task, ())
-print("debug: [啟動執行緒]:", _thread.get_ident())#get_ident() 可以獲得目前執行緒的 ID，若成功啟動會顯示執行緒編號
+#print("debug: [啟動執行緒]:", _thread.get_ident())#get_ident() 可以獲得目前執行緒的 ID，若成功啟動會顯示執行緒編號
 utime.sleep(2) 
 
 
@@ -261,6 +271,8 @@ utime.sleep(2)
 # 執行timer callback
 # =========================
 timer_manager.start_timers()
+print("Debugger:[start Timer] 記憶體:")
+micropython.mem_info()
 
 
 last_time = 0

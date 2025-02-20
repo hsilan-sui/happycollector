@@ -1,4 +1,3 @@
-'''Dubug 版本的Senko.py'''
 import urequests
 import uhashlib
 import gc
@@ -55,87 +54,46 @@ class Senko:
             return payload.text #回傳文字內容（程式碼）
         else:
             return None
-    # def _get_file(self, url):
-    #     """ 以 chunked 方式下載檔案，避免記憶體爆滿 """
-    #     import urequests
-        
-    #     gc.collect()
-    #     micropython.mem_info()
-        
-    #     try:
-    #         response = urequests.get(url, headers=self.headers, stream=True)  # 以串流模式下載
-    #         if response.status_code == 200:
-    #             file_name = url.split("/")[-1]  # 取得檔案名稱
-    #             with open(file_name, "w") as f:
-    #                 while True:
-    #                     chunk = response.raw.read(512)  # 每次讀取 512 bytes
-    #                     if not chunk:
-    #                         break
-    #                     f.write(chunk.decode())  # 逐行寫入檔案
-    #             response.close()
-    #             return True
-    #         else:
-    #             print(f"無法下載 {file_name}, 狀態碼: {response.status_code}")
-    #     except Exception as e:
-    #         print(f"下載 {file_name} 失敗: {e}")
-    #     return False
 
-
-    ## 檢查哪些檔案需要更新(微調版)
+    ## 檢查哪些檔案需要更新
     def _check_all(self):
         changes = []
-        print('Debugger:[senko._check_all] 開始') 
-        gc.collect()
-        index_times = 0
-        print(f"Debugger:[senko._check_all] 進入files迴圈前:{gc.mem_free()}") 
+        index = 0
+        print(f"debug:[_check_all]: 進入迴圈前")
+        micropython.mem_info()
         for file in self.files:
             # =====
             # 新版待測試 所以使用60000 總體記憶體為標準試看看
             # =====
-            index_times += 1
-            
-            print(f'Debugger:[senko._check_all 迴圈跑到{file}]: 更新第: {index_times} 檔案')
-            micropython.mem_info()
+            index += 1
+            print(f"debug:[_check_all]: 有{file}, {index}")
+
             while(gc.mem_free() < 60000): #確保記憶體夠用 (gc.mem_free() < 60000
                 # =====
                 # 打印整體記憶體資訊
                 # =====
                 gc.collect()
-                
-                #print(gc.mem_free())
-                print(f"{file}: ===>可用記憶體:")
+                print(f"debug:[_check_all]: 迴圈內")
                 micropython.mem_info()
-                sleep(1)
                 
-            print(f'Debugger:[senko._check_all] 準備下載 {file} 的latest_version')
+                sleep(1)
             latest_version = self._get_file(self.url + "/" + file)  # 調用方法發送請求 下載 GitHub 上的最新版本程式碼    
             if latest_version is None:
-                print(f'Debugger:[senko._check_all]  {file} 沒有 latest_version')
                 continue
 
             try:
                 with open(file, "r") as local_file: #讀取 ESP32 本地版本的相同檔案
                     local_version = local_file.read()
-                    print(f'Debugger:[senko._check_all]  讀取 {file} 的local_version')
             except:
                 local_version = ""
-                print(f'Debugger:[senko._check_all] {file} 目前local_version為空')
 
             if not self._check_hash(latest_version, local_version):
                 changes.append(file) #如果 不同，代表有變更，加入 changes 清單
-                print(f'Debugger:[senko._check_all] 目前已加入changes清單，有 {changes} ')
-            print(f"Debugger:[latest_version與local_version]尚未是空字串,記憶體:{gc.mem_free()}")
             latest_version=""
             local_version = ""
-            print(f"Debugger:[latest_version與local_version]已變成空字串,記憶體:{gc.mem_free()}")
-            ## 
-            # 釋放記憶體
-            del latest_version, local_version
-            print(f"Debugger:[del後]:{gc.mem_free()}")
-            gc.collect()
-            print(f"Debugger:[gc後]:{gc.mem_free()}")
+            print(f"debug:[_check_all]: return前")
+            micropython.mem_info()
         return changes
-
 
     # def fetch(self): # 沒有使用
     #     """Check if newer version is available.
@@ -156,10 +114,6 @@ class Senko:
         """
         changes = self._check_all() #呼叫 _check_all() 找出需要更新的檔案
         gc.collect()
-        # =======
-        # 記憶體打印
-        # =====
-        print('Debugger[senko.update] memory_data') 
         micropython.mem_info()
         for file in changes: #逐一下載 GitHub 最新版本並覆蓋 ESP32 上的舊版本
             with open(file, "w") as local_file:
@@ -170,3 +124,76 @@ class Senko:
             return True
         else:
             return False
+
+
+    # def _get_file(self, url):
+    #     # =======
+    #     # 記憶體測試
+    #     # =====
+    #     gc.collect()
+    #     micropython.mem_info()
+    #     payload = urequests.get(url, headers=self.headers)
+    #     code = payload.status_code
+    #     #print("read ok  "+url)
+    #     gc.collect()
+    #     #print(gc.mem_free())
+    #     if code == 200:
+    #         return payload.text
+    #     else:
+    #         return None
+
+    # def _check_all(self):
+    #     changes = []
+    #     print('debug[senko._check_all] Start') 
+    #     index_times = 0
+    #     print(f"debug[senko._check_all] 進入迴圈前:{gc.mem_free()}")
+
+    #     for file in self.files:
+    #         # =====
+    #         # 測試 
+    #         # =====
+    #         index_times += 1
+    #         print(f'debug:[senko._check_all 迴圈跑到{file}]: index: {index_times}')
+    #         while(gc.mem_free()<60000):
+    #             gc.collect()
+    #             print(f"{file}: ===> (可用記憶體: {gc.mem_free()})")
+         
+    #             sleep(1)
+    #         latest_version = self._get_file(self.url + "/" + file)            
+    #         if latest_version is None:
+    #             continue
+
+    #         try:
+    #             with open(file, "r") as local_file:
+    #                 local_version = local_file.read()
+    #         except:
+    #             local_version = ""
+
+    #         if not self._check_hash(latest_version, local_version):
+    #             changes.append(file)
+    #         latest_version=""
+    #         local_version = ""
+    #         print(f"return之前 ===> (可用記憶體: {gc.mem_free()})")
+    #     return changes
+
+   
+    # def update(self):
+    #     """Replace all changed files with newer one.
+
+    #     Returns:
+    #         True - if changes were made, False - if not.
+    #     """
+    #     changes = self._check_all()
+    #     #print(changes)
+    #     gc.collect()
+    #     #print(gc.mem_free())
+    #     for file in changes:
+    #         with open(file, "w") as local_file:
+    #             local_file.write(self._get_file(self.url + "/" + file))
+            
+
+    #     if changes:
+    #         return True
+    #     else:
+    #         return False
+

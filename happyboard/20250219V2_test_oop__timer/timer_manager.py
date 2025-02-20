@@ -39,6 +39,7 @@ class TimerManager:
         #     return
         self.server_report_sales_counter = (self.server_report_sales_counter + 1) % self.server_report_sales_period
         if self.server_report_sales_counter == 0:
+            print(f"Debugger:[timer_manager] wdt: {self.wdt} ")
             self.wdt.feed()
             if self.now_main_state.state in [4, 5]:
                 self.mqtt_manager.mqtt_handler.publish_MQTT_claw_data('sales')
