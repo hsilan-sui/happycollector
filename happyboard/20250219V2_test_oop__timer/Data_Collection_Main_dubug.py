@@ -1,8 +1,19 @@
-VERSION = "V1.08c_sui"
+VERSION = "V1.08c_debugger_sui"
+#　測試記憶體LOG
+def mem_log(title, text):
+    import micropython
+    print("====================================")
+    print(f"Debugger:[{title}] {text}:")
+    print("====================================")
+    micropython.mem_info()
+    print("====================================")
 
-import micropython
-print("Debugger:[Data_Collection_Main] 首行，記憶體:")
-micropython.mem_info()
+### LOG 記憶體 ###
+mem_log('Data_Collection', '首行，記憶體')
+
+# print("Debugger:[Data_Collection_Main] 首行，記憶體:")
+# micropython.mem_info()
+
 #標準庫
 #import binascii
 import os
@@ -137,6 +148,9 @@ class KindFEILOLIcmd:
 
 
 ############################################# 初始化 #############################################
+### LOG 記憶體 ###
+mem_log('Data_Collection', '開始初始化程序，記憶體')
+
 print('\n\r開始執行Data_Collection_Main初始化，版本為:', VERSION)
 print('開機秒數:', utime.ticks_ms() / 1000)
 
@@ -179,12 +193,19 @@ mq_client_1 = None
 #==============
 #uart_handler = UartHandler(claw_1, mqtt_manager.mqtt_handler)
 
-print("Debugger:[Step 1: 初始化 UART Handler] 記憶體:")
-micropython.mem_info()
+# print("Debugger:[Step 1:初始化Uart_Handler] 記憶體:")
+# micropython.mem_info()
+
+### LOG 記憶體 ###
+mem_log('Step 1:初始化Uart_Handler', '記憶體')
+
 uart_handler = UartHandler(claw_1, None, LCD_update_flag, now_main_state) # 但先不設定 mqtt_handler=None
 
-print("Debugger:[Step 2: 初始化 UART Manager] 記憶體:")
-micropython.mem_info()
+# print("Debugger:[Step 2: 初始化 UART Manager] 記憶體:")
+# micropython.mem_info()
+### LOG 記憶體 ###
+mem_log('Step 2:初始化 Uart_Manager', '記憶體')
+
 uart_manager = UartManager(claw_1=claw_1,
     KindFEILOLIcmd=KindFEILOLIcmd,
     uart_handler=uart_handler,
@@ -194,14 +215,17 @@ uart_manager = UartManager(claw_1=claw_1,
 # 1.mqtt_manager初始化(已含toke取得)
 # 涵蓋娃娃機參數 UART類別 KindFEILOLIcmd類別
 #==============
-print(f"wifi_manager: {wifi_manager}")  # 檢查 wifi_manager 是否有值
-print(VERSION)
-print(network_info["mac"])
+# print(f"wifi_manager: {wifi_manager}")  # 檢查 wifi_manager 是否有值
+# print(VERSION)
+# print(network_info["mac"])
 
 
 #要測試UART_MANAGEr
-print("Debugger:[Step 3: 初始化 MQTT Manager | MqttHandler也在其中初始化] 記憶體:")
-micropython.mem_info()
+# print("Debugger:[Step 3: 初始化 MQTT Manager | MqttHandler也在其中初始化] 記憶體:")
+# micropython.mem_info()
+### LOG 記憶體 ###
+mem_log('Step 3: 初始化 Mqtt_Manager -> Matt_Handler', '記憶體')
+
 mqtt_manager = MqttManager(
     mac_id=network_info["mac"],
     claw_1=claw_1,
@@ -224,9 +248,11 @@ mqtt_manager = MqttManager(
 
     ## 物件導向的依賴注入：將物件之間的依賴在建構階段先「斷開」，等物件建立完成後再「手動綁定」，類似於「依賴注入 (Dependency Injection)」的概念
 #==============
-print("Debugger:[Step 4: 相互依賴解耦與物件關聯初始化] 記憶體:")
-micropython.mem_info()
 gc.collect()
+# print("Debugger:[Step 4: 相互依賴解耦與物件關聯初始化] 記憶體:")
+# micropython.mem_info()
+### LOG 記憶體 ###
+mem_log('Step 4:ALL物件關聯初始化', '記憶體')
 
 ## ==============
 # 避免在初始化階段因物件還未建立好就被呼叫，導致 NoneType 錯誤。
@@ -245,23 +271,37 @@ uart_handler.mqtt_handler = mqtt_handler
 mqtt_manager.uart_manager = uart_manager
 
 gc.collect()
-print("Debugger:[初始化物件&gc後] 記憶體:")
-micropython.mem_info()
+# print("Debugger:[初始化物件&gc後] 記憶體:")
+# micropython.mem_info()
+
+### LOG 記憶體 ###
+mem_log('Step 5:test釋放記憶體', '記憶體')
 #mq_client_1 = mqtt_manager.client
 # ========================
 # 初始化timer
 # =========================
+gc.collect()
+# print("Debugger:[初始化Timer] 記憶體:")
+# micropython.mem_info()
+### LOG 記憶體 ###
+mem_log('Step 6:初始化Timer', '記憶體')
+
 timer_manager = TimerManager(now_main_state, MainStatus, wifi_manager, uart_manager, mqtt_manager, mqtt_handler, lcd_mgr, wdt, LCD_update_flag, claw_1)
 
 gc.collect()
-print("Debugger:[準備執行緒] 記憶體:")
-micropython.mem_info()
+# print("Debugger:[準備執行緒] 記憶體:")
+# micropython.mem_info()
+### LOG 記憶體 ###
+mem_log('Step 7:準備執行緒', '記憶體')
 #_thread.stack_size(8 * 1024)  # 只需設置一次
 _thread.stack_size(16 * 1024)  # 只需設置一次
 #_thread.stack_size(20 * 1024)  # 只需設置一次
 _thread.start_new_thread(uart_manager.receive_packet, ())
-print("Debugger:[開始執行緒] 記憶體:")
-micropython.mem_info()
+
+### LOG 記憶體 ###
+mem_log('Step 8:啟動執行緒後', '記憶體')
+# print("Debugger:[開始執行緒] 記憶體:")
+# micropython.mem_info()
 #_thread.start_new_thread(thread_task, ())
 #print("debug: [啟動執行緒]:", _thread.get_ident())#get_ident() 可以獲得目前執行緒的 ID，若成功啟動會顯示執行緒編號
 utime.sleep(2) 
@@ -271,6 +311,8 @@ utime.sleep(2)
 # 執行timer callback
 # =========================
 timer_manager.start_timers()
+### LOG 記憶體 ###
+mem_log('Step 9:啟動timer', '記憶體')
 # print("Debugger:[start Timer] 記憶體:")
 # micropython.mem_info()
 
@@ -299,8 +341,8 @@ while True:
             print("My MAC Address:", network_info['mac'])
             # print("My IP Address:", my_internet_data.ip_address)
             # print("My MAC Address:", my_internet_data.mac_address)
-            print("Debugger:[NONE_WIFI] 記憶體:")
-            micropython.mem_info()
+            ### LOG 記憶體 ###
+            mem_log('Step 10:Status_WiFi is OK', '記憶體')
             now_main_state.transition('WiFi is OK')
             
 
@@ -309,6 +351,8 @@ while True:
             now_main_state.transition('Internet is OK')  # 目前不做判斷，狀態機直接往下階段跳轉
 
         elif now_main_state.state == MainStatus.NONE_MQTT:
+            ### LOG 記憶體 ###
+            # mem_log('Step 11:Status_Internet is OK', '記憶體')
             print('now_main_state: Internet is OK, 開機秒數:', current_time / 1000)
             # =============================
             # 連線mqtt
@@ -334,11 +378,15 @@ while True:
             print(gc.mem_free())
 
         elif now_main_state.state == MainStatus.NONE_FEILOLI:
+            ### LOG 記憶體 ###
+            # mem_log('Step 11:Status_MQTT is OK', '記憶體')
             print('\n\rnow_main_state: MQTT is OK (FEILOLI UART is not OK), 開機秒數:', current_time / 1000)
             gc.collect()
             print(gc.mem_free())
 
         elif now_main_state.state == MainStatus.STANDBY_FEILOLI:
+            ### LOG 記憶體 ###
+            # mem_log('Step 12:Status_UART is OK', '記憶體')
             print('\n\rnow_main_state: FEILOLI UART is OK, 開機秒數:', current_time / 1000)
             gc.collect()
             print(gc.mem_free())
@@ -350,9 +398,12 @@ while True:
             
 
         else:
+            ### LOG 記憶體 ###
+            mem_log('Step 13:Status_Invalid action!', '記憶體')
             print('\n\rInvalid action! now_main_state:', now_main_state.state)
             print('開機秒數:', current_time / 1000)
             gc.collect()
-         
 
         LCD_update_flag['Time'] = True
+    
+

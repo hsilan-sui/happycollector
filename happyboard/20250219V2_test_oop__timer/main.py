@@ -238,7 +238,7 @@ while True:
     gc.collect()
     try:
         print("執行Data_Collection_Main.py...")
-        print("Debugger:[main.py] 執行Data_Collection_Main.py之前記憶體:")
+        print("Debugger:[main.py] 執行Data_Collection_Main.py之前 記憶體:")
         micropython.mem_info()
         execfile('Data_Collection_Main.py')
     except Exception as e:
