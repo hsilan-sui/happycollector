@@ -21,9 +21,9 @@ class MqttManager:
         
         """ 初始化 MQTT Manager """
         self.server = server
-        self.mac_id = mac_id
         self.user = user
         self.password = password
+        self.mac_id = mac_id
         self.client = None  # MQTT 物件
         self.token = self.load_token()  # 自動取得 token
 

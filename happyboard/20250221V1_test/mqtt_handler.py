@@ -19,52 +19,36 @@ class MqttHandler:
         self.uart_manager = uart_manager
         self.wifi_manager = wifi_manager
 
-    def process_message(self, topic, message):
-        """
-        訂閱訊息的回調函數 (MQTT 訂閱接收)
-        :param topic: 訂閱的 MQTT 主題
-        :param message: 接收到的 MQTT 訊息
-        """
+        
+
+    def process_fota(self, data):
+        """ 處理 FOTA 訊息 """
+        otafile = 'otalist.dat'
         try:
-            topic = topic.decode()
-            message = message.decode()
-            print(f"收到 MQTT 訊息: {topic} => {message}")
+            if 'file_list' in data and 'password' in data:
+                if data['password'] == 'c0b82a2c-4b03-42a5-92cd-3478798b2a90':
+                    ## 當 ESP32 確認收到 FOTA 指令，會透過 MQTT 發布 "fotaack"
+                    ## 這讓 伺服器或 MQTT Broker 知道 ESP32 準備開始更新
+                    self.publish_MQTT_claw_data("fotaack")
 
-            # 嘗試解析 JSON 訊息
-            data = ujson.loads(message)
-            mac_id = self.mqtt_manager.mac_id
-            token = self.mqtt_manager.token
-
-            # 設定 MQTT topic 前綴
-            topic_prefix = f"{mac_id}/{token}"
-
-            # 判斷 MQTT 主題並執行相應處理函數
-            ## /fota  ===> 處理fota 訊息
-            if topic == f"{topic_prefix}/fota":
-                self.process_fota(data)
-
-            ##/commands ===> 處理commands訊息
-            elif topic == f"{topic_prefix}/commands":
-                #self.process_commands(data, self.publish_MQTT_claw_data, self.self.uart_FEILOLI_send_packet, self.claw_1)
-                self.process_commands(data)
-                print(f"debug 成功處理MQTT指令{data}")
-
+                    with open(otafile, 'w') as f:
+                        f.write(''.join(data['file_list']))
+                    print("FOTA file saved. Rebooting...")
+                    utime.sleep(3)
+                    import machine
+                    machine.reset()
+                else:
+                    print("debug:[process_fota] Invalid FOTA password")
             else:
-                print(f"未知的 MQTT 主題: {topic}")
-
-        except ValueError as ve:
-            print(f"JSON 解析錯誤: {ve}")
+                print("debug:[process_fota] Incomplete FOTA data received")
         except Exception as e:
-            print(f"MQTT 訊息處理錯誤: {e}")
-
-    #fota先不寫
-    def process_fota(self, data): 
-        pass
+            print(f"debug:[process_fota] Error handling FOTA: {e}")
     # 先處理commands
     def process_commands(self, data):
         """ 專門處理 接收到 /commands 的訊息 並進行下一步"""
         commands_handler = {
             'ping': self.handle_ping, # 收到ping的mqtt訊息 ==> 回應pong OK
+            #'getTimeNow': self.handle_getTimeNow, # 收到getTimeNow的mqtt訊息 ==> 回應時間
             'version': self.handle_version, # 收到version的mqtt訊息 ==> 回應version OK
             'clawreboot': self.handle_clawreboot, # 涉及到UART =>
             'clawstartgame': self.handle_clawstartgame,
@@ -79,7 +63,28 @@ class MqttHandler:
             handler(data) # 調用self.handle_ping(ping') 
         else:
             print(f"指令有誤: {command}")
+    ### ========= 處理時間  =============###
+    def process_time_response(self, data):
+        
+        try:
+            if "time" not in data:
+                print(f"Debugger:[錯誤]:接收的 MQTT 訊息沒有 'time' 欄位")
+                return
+             # 解析時間字串
+            time_str = data["time"]
+            print(f"接收到時間: {time_str}")
 
+            # 拆分時間字串
+            year, month, day, hour, minute, second = map(int, time_str.split('-'))
+
+            # 設定 ESP32 的 RTC
+            import machine
+            rtc = machine.RTC()
+            rtc.datetime((year, month, day, 0, hour, minute, second, 0)) 
+
+            print(f"Debugger:[RTC更新成功]: {year}-{month}-{day} {hour}:{minute}:{second}")
+        except Exception as e:
+            print(f"時間解析錯誤: {e}")
     ### ========= commands_handle 指令 所對應的函式  =============###
     def handle_ping(self, data):
         #'ping': self.handle_ping
@@ -127,7 +132,7 @@ class MqttHandler:
         except ValueError as ve:
             print(f"debug:[mqtt_handler] 數值錯誤: {ve}")
         except Exception as e:
-            print(f"debug:[mqtt_handler]　錯誤處理　Error handling clawstartgame: {e}")
+            print(f"debug:[mqtt_handler] 錯誤處理 Error handling clawstartgame: {e}")
     
     def handle_clawreboot(self,data):
         self.publish_MQTT_claw_data("commandack-clawreboot", data.get("state"))
@@ -168,14 +173,14 @@ class MqttHandler:
         #先做嚴謹的api比對
         elif api == ("commandack-clawmachinesetting"):
             data = self.build_clawmachinesetting_data(self.claw_1, para1)
-        # elif api == ("commandack-clawcleantransaccount"):
+        #elif api == ("commandack-clawcleantransaccount"):
         #     data = self.handle_clawcleantransaccount_data(self.claw_1, para1)
 
         # elif api == ("commandack-fileinfo"):
         #     data = self.build_fileinfo_data(??)
         # elif api == ("commandack-fileremove"):
         #     data = self.build_fileremove_data(??)   
-        elif api.startswith("commandack"): #剩下的前綴api都在這裡做處理
+        elif api.startswith("commandack") or api == ('fotaack'): #剩下的前綴api都在這裡做處理
             data = self.handle_ack_with_state(api, para1)
         else:
             print(f"無此MQTT發佈的API: {api}")
@@ -312,7 +317,7 @@ class MqttHandler:
             "commandack-clawcleantransaccount": "OK",
             "commandack-pong": "pong",
             "commandack-version": self.mqtt_manager.version,
-            #"fotaack": "OK",
+            "fotaack": "OK",
         }.get(api_select, "OK")
         
         if para1:
@@ -326,176 +331,3 @@ class MqttHandler:
                 "ack": ack_value,
                 "time": utime.time()
             }
-# import ujson
-# import gc
-# import utime
-
-# class MQTTHandler:
-#     def __init__(self, mqtt_manager, claw, uart_func):
-#         """
-#         初始化 MQTT 訊息處理器
-#         :param mqtt_manager: MQTT 管理器
-#         :param claw: 娃娃機資料對象
-#         :param uart_func: 傳送 UART 指令的函數
-#         """
-#         self.mqtt_manager = mqtt_manager
-#         self.claw = claw
-#         self.uart_func = uart_func
-
-#     def process_message(self, topic, message):
-#         """ 處理 MQTT 訂閱的訊息 """
-#         try:
-#             topic = topic.decode()
-#             message = message.decode()
-#             print(f"收到 MQTT 訊息: {topic} => {message}")
-
-#             data = ujson.loads(message)
-#             mac_id = self.mqtt_manager.mac_id
-#             token = self.mqtt_manager.token
-
-#             topic_prefix = f"{mac_id}/{token}"
-
-#             if topic == f"{topic_prefix}/fota":
-#                 self.process_fota(data)
-
-#             elif topic == f"{topic_prefix}/commands":
-#                 self.process_commands(data)
-
-#             else:
-#                 print(f"未知的 MQTT 主題: {topic}")
-
-#         except ValueError as ve:
-#             print(f"JSON 解析錯誤: {ve}")
-#         except Exception as e:
-#             print(f"MQTT 訊息處理錯誤: {e}")
-
-#     ### ✅ ✅ ✅ 整合 mqtt_helper.py 內的 helper 函數 ✅ ✅ ✅ ###
-
-#     def process_fota(self, data):
-#         """ 處理 FOTA 訊息 """
-#         otafile = 'otalist.dat'
-#         try:
-#             if 'file_list' in data and 'password' in data:
-#                 if data['password'] == 'c0b82a2c-4b03-42a5-92cd-3478798b2a90':
-#                     self.publish_MQTT_claw_data("fotaack")
-#                     with open(otafile, 'w') as f:
-#                         f.write(''.join(data['file_list']))
-#                     print("FOTA file saved. Rebooting...")
-#                     utime.sleep(3)
-#                     import machine
-#                     machine.reset()
-#                 else:
-#                     print("Invalid FOTA password")
-#             else:
-#                 print("Incomplete FOTA data received")
-#         except Exception as e:
-#             print(f"Error handling FOTA: {e}")
-
-#     def process_commands(self, data):
-#         """ 處理 commands 訊息 """
-#         command_handlers = {
-#             'ping': self.handle_ping,
-#             'version': self.handle_version,
-#             'clawreboot': self.handle_claw_reboot,
-#             'clawstartgame': self.handle_claw_start_game,
-#             'clawcleantransaccount': self.handle_claw_clean_trans_account,
-#             'clawmachinesetting': self.handle_claw_machine_setting,
-#         }
-
-#         command = data.get('commands')
-#         handler = command_handlers.get(command)
-
-#         if handler:
-#             handler(data)
-#         else:
-#             print(f"未知的指令: {command}")
-
-#     ### ✅ ✅ ✅ 整合 command 處理函數 ✅ ✅ ✅ ###
-
-#     def handle_ping(self, data):
-#         self.publish_MQTT_claw_data("commandack-pong")
-
-#     def handle_version(self, data):
-#         self.publish_MQTT_claw_data("commandack-version")
-
-#     def handle_claw_reboot(self, data):
-#         self.publish_MQTT_claw_data("commandack-clawreboot", data.get("state"))
-#         self.uart_func(KindFEILOLIcmd.Send_Machine_reboot)
-
-#     def handle_claw_start_game(self, data):
-#         try:
-#             epays = data.get('epays', 0)
-#             freeplays = data.get('freeplays', 0)
-
-#             if not (1 <= epays <= 40):
-#                 raise ValueError(f"Invalid epays: {epays}")
-#             if not (0 <= freeplays <= 10):
-#                 raise ValueError(f"Invalid freeplays: {freeplays}")
-
-#             game_data = {"epays": epays, "freeplays": freeplays}
-#             self.publish_MQTT_claw_data("commandack-clawstartgame", data.get("state"))
-#             self.uart_func(KindFEILOLIcmd.Send_Starting_once_game, game_data)
-#         except Exception as e:
-#             print(f"Error handling clawstartgame: {e}")
-
-#     def handle_claw_clean_trans_account(self, data):
-#         account = data.get('account', '').split(", ")
-#         self.publish_MQTT_claw_data("commandack-clawcleantransaccount", data.get("state"))
-#         self.uart_func(KindFEILOLIcmd.Send_Clean_transaction_account, account)
-
-#     def handle_claw_machine_setting(self, data):
-#         setting = data.get('setting', '').strip()
-#         valid_settings = ["BasicsettingA", "BasicsettingB", "BasicsettingC", "Clawvoltage", "Motorspeed"]
-#         if setting in valid_settings:
-#             self.uart_func(KindFEILOLIcmd.Ask_Machine_setting, setting)
-#         else:
-#             print(f"Invalid machine setting: {setting}")
-
-#     ### ✅ ✅ ✅ 整合 publish 相關函數 ✅ ✅ ✅ ###
-
-#     def publish_MQTT_claw_data(self, api, para1=""):
-#         """ 發佈 MQTT 娃娃機數據 """
-#         if api == "sales":
-#             data = self.build_sales_data()
-#         elif api == "status":
-#             wifi_signal_strength = self.mqtt_manager.wifi_manager.get_signal_strength()
-#             data = self.build_status_data(wifi_signal_strength)
-#         elif api.startswith("commandack"):
-#             data = self.handle_ack_with_state(api, para1)
-#         else:
-#             print(f"未知的 MQTT 發佈 API: {api}")
-#             return
-
-#         self.mqtt_manager.publish(f"{self.mqtt_manager.mac_id}/{self.mqtt_manager.token}/{api}", data)
-#         gc.collect()
-
-#     ### ✅ ✅ ✅ 整合原本 helper 的數據處理函數 ✅ ✅ ✅ ###
-
-#     def build_sales_data(self):
-#         return {
-#             "Epayplaytimes": self.claw.Number_of_Original_Payment,
-#             "Coinplaytimes": self.claw.Number_of_Coin,
-#             "Giftplaytimes": self.claw.Number_of_Gift_Payment,
-#             "GiftOuttimes": self.claw.Number_of_Award,
-#             "time": utime.time(),
-#         }
-
-#     def build_status_data(self, wifi_signal_strength):
-#         return {
-#             "status": f"{self.claw.Error_Code_of_Machine:02d}",
-#             "wifirssi": wifi_signal_strength,
-#             "time": utime.time(),
-#         }
-
-#     def handle_ack_with_state(self, api_select, para1=None):
-#         ack_value = {
-#             "commandack-pong": "pong",
-#             "commandack-version": self.mqtt_manager.version,
-#             "fotaack": "OK",
-#         }.get(api_select, "OK")
-
-#         return {
-#             "ack": ack_value,
-#             "state": para1,
-#             "time": utime.time(),
-#         }

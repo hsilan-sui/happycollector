@@ -87,7 +87,8 @@ def handle_claw_start_game(data, publish_func, uart_func, claw, KindFEILOLIcmd):
         epays = data.get('epays', 0)
         freeplays = data.get('freeplays', 0)
 
-        if not (1 <= epays <= 40):
+        # 測試0214
+        if not (0 <= epays <= 40):
             raise ValueError(f"Invalid epays: {epays}")
         if not (0 <= freeplays <= 10):
             raise ValueError(f"Invalid freeplays: {freeplays}")

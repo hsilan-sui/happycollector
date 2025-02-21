@@ -3,7 +3,7 @@
 import micropython
 micropython.mem_info()
 
-import wifimgr
+#import wifimgr
 from utime import sleep
 #import machine
 import senko
@@ -16,12 +16,13 @@ from BN165DKBDriver import readKBData
 import machine
 #　lcd 模組
 from lcd_manager import LCDManager
+from wifi_manager import WiFiManager #wifi管理類
 # 165D键盘的四根数据线对应的GPIO
 CP = Pin(0, Pin.OUT)
 CE = Pin(0, Pin.OUT)
 PL = Pin(32, Pin.OUT)
 Q7 = Pin(33, Pin.IN)
- 
+
 
 #led = Pin(2, Pin.OUT)
 LCD_EN = Pin(27, Pin.OUT, value=1)#第三個參數是預設輸出電 #LCD_EN.value(1)
@@ -35,7 +36,6 @@ ESP32_TXD2_FEILOLI = Pin(17, Pin.IN)
 lcd_mgr = LCDManager.get_instance() 
 # LCD單例初始化
 lcd_mgr.initialize()
-
 lcd_mgr.fill()  # 使用預設顏色（黑色）
 # 繪製文字
 lcd_mgr.draw_text(0, 0, fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLUE, bgmode=-1) 
@@ -111,58 +111,71 @@ elif ESP32_TXD2_FEILOLI.value() == 0 :
 sleep(3)
 wdt=WDT(timeout=1000*60*5) 
 
-wlan = wifimgr.get_connection()
-if wlan is None:
-    print("Could not initialize the network connection.")
-    while True:
-        pass  # you shall not pass :D
-
-from utils import get_wifi_signal_strength
-signal_strength = get_wifi_signal_strength(wlan)
-if signal_strength is not None:
+# =============================
+# wifi連線
+# =============================
+wifi_manager = WiFiManager()
+network_info = wifi_manager.connect()
+print(f"網路資料:{network_info}")
+# wlan = wifimgr.get_connection()
+# if wlan is None:
+#     print("Could not initialize the network connection.")
+#     while True:
+#         pass  # you shall not pass :D
+if network_info: #會顯示net work config資料
+    signal_strength = wifi_manager.get_signal_strength()
     print("WiFi Signal Strength:", signal_strength, "dBm")
-else:
-    print("Unable to retrieve signal strength.")
+    
+
+# from utils import get_wifi_signal_strength
+# signal_strength = get_wifi_signal_strength(wlan)
+# if signal_strength is not None:
+#     print("WiFi Signal Strength:", signal_strength, "dBm")
+# else:
+#     print("Unable to retrieve signal strength.")
 
 # Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
 print("ESP OK")
 
 lcd_mgr.draw_text(0 , 16, text='SSID:')
-
-lcd_mgr.draw_text(5 * 8 , 16, text=wlan.config('essid'))
-
-lcd_mgr.draw_text(0 , 16 * 2, text=wlan.ifconfig()[0])
-
+lcd_mgr.draw_text(5 * 8 , 16, text=wifi_manager.ssid)
+lcd_mgr.draw_text(0 , 16 * 2, text=network_info['ip'])
 lcd_mgr.show()
 
+# =============================
+# NTP伺服器與時間處理
+# =============================
+wifi_manager.sync_time()
 # 增加多個NTP伺服器選項(失敗就會跳下一個嘗試)
-def tw_ntp(must=False):
-    ntp_servers = [
-        "clock.stdtime.gov.tw", 
-        "time.stdtime.gov.tw",
-        "watch.stdtime.gov.tw", 
-        "tick.stdtime.gov.tw", 
-        "pool.ntp.org",  # 全球可用 NTP 伺服器 test ok
-        "time.google.com" #Google NTP 伺服器，全球適用 
-    ]  
-    ntptime.NTP_DELTA = 3155673600 # UTC+8 的 magic number
-    count = 1 if not must else 100
+# def tw_ntp(must=False):
+#     ntp_servers = [
+#         "clock.stdtime.gov.tw", 
+#         "time.stdtime.gov.tw",
+#         "watch.stdtime.gov.tw", 
+#         "tick.stdtime.gov.tw", 
+#         "pool.ntp.org",  # 全球可用 NTP 伺服器 test ok
+#         "time.google.com" #Google NTP 伺服器，全球適用 
+#     ]  
+#     ntptime.NTP_DELTA = 3155673600 # UTC+8 的 magic number
+#     #3155673600 秒 = UTC+8 的時間修正值（因為 MicroPython 預設 NTP 是 UTC 1970 年）
+#     count = 1 if not must else 10 #最多嘗試10次
 
-    for _ in  range(count):
-        for server in ntp_servers:
-            try:
-                ntptime.host = server
-                ntptime.settime()
-                print(f"NTP 時間同步成功，使用 {server}")
-                return True
-            except Exception as e:
-                print(f"嘗試 {server} 失敗: {e}")
-                sleep(1)
-                continue  # 不 return False，繼續嘗試下一個伺服器
-    print("所有 NTP 伺服器皆無法同步，改用 HTTP 時間")
-    from utils import get_http_time
-    # 用http做時間同步的備援
-    get_http_time()
+#     for _ in  range(count):
+#         for server in ntp_servers:
+#             try:
+#                 ntptime.host = server # 調整時間的基準值
+#                 ntptime.settime() #設定timeout 
+#                 print(f"NTP 時間同步成功，使用 {server}")
+#                 return True
+#             except Exception as e:
+#                 print(f"嘗試 {server} 失敗: {e}")
+#                 #sleep(1)
+#                 sleep(1)  # uniform(1, 3)隨機等待 1~3 秒，降低被封鎖的風險
+#                 continue  # 不 return False，繼續嘗試下一個伺服器
+#     print("所有 NTP 伺服器皆無法同步，改用 HTTP 時間")
+#     from utils import get_http_time
+#     # 用http做時間同步的備援
+#     get_http_time()
 
 
 
@@ -193,8 +206,12 @@ def tw_ntp(must=False):
 #       return True
 #   return False
 
-tw_ntp(must=True)
+#這裡待做斷網測試
+#tw_ntp(must=True)
 
+# =============================
+# OTA更新相關
+# =============================
 # 檔案名稱
 filename = 'otalist.dat'
 
@@ -251,6 +268,9 @@ else:
 
 print("ESP OTA OK")
 
+# =============================
+# 運行主程式
+# =============================
 while True:
     for i in range(3, 0, -1):
         lcd_mgr.draw_text(0, 16 * 3, text=f"CountDown...{str(i)}",bg=lcd_mgr.color.BLACK, bgmode=-1)

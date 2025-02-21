@@ -631,17 +631,13 @@ mq_client_1 = None
 #==============
 #uart_handler = UartHandler(claw_1, mqtt_manager.mqtt_handler)
 print("debug: [Step 1: 初始化 UART Handler]")
-uart_handler = UartHandler(claw_1, None, LCD_update_flag, now_main_state) # 先設為 None，稍後補齊
+uart_handler = UartHandler(claw_1, None, LCD_update_flag, now_main_state) # 但先不設定 mqtt_handler=None
 
-# uart_manager = UartManager(claw_1=claw_1,
-#     KindFEILOLIcmd=KindFEILOLIcmd,
-#     uart_handler=uart_handler,
-#     mqtt_handler=mqtt_manager.mqtt_handler)
 print("debug: [Step 2: 初始化 UART Manager]")
 uart_manager = UartManager(claw_1=claw_1,
     KindFEILOLIcmd=KindFEILOLIcmd,
     uart_handler=uart_handler,
-    mqtt_handler=None) # 先設為 None，避免循環依賴) 
+    mqtt_handler=None) # 先不設定 mqtt_handler=None) 
 # 創建 MQTT 訊息處理器(函式方法)
 # handler = MQTTHandler(mqtt_manager, claw_1, uart_FEILOLI.write)
 
@@ -655,14 +651,7 @@ print(f"wifi_manager: {wifi_manager}")  # 檢查 wifi_manager 是否有值
 print(VERSION)
 print(network_info["mac"])
 
-# mqtt_manager = MqttManager(
-#     mac_id=network_info["mac"],
-#     claw_1=claw_1,
-#     uart_FEILOLI_send_packet=uart_FEILOLI_send_packet,
-#     KindFEILOLIcmd=KindFEILOLIcmd,
-#     version=VERSION,
-#     wifi_manager=wifi_manager,
-# )
+
 #要測試UART_MANAGEr
 print("debug: [Step 3: 初始化 MQTT Manager | MqttHandler也在其中初始化]")
 mqtt_manager = MqttManager(
@@ -672,43 +661,46 @@ mqtt_manager = MqttManager(
     version=VERSION,
     wifi_manager=wifi_manager,
     uart_manager=uart_manager
-)
+) #並在其中建立 mqtt_handler()
 
-print("debug: [Step 4: 解決相互依賴]")
+#==============
+# 解決 MQTT Manager、UART Manager、UART Handler 之間的「相互依賴性」問題
+# 下面這段是確保 它們在初始化完成後，能夠互相存取彼此的物件，避免「循環依賴（Circular Dependency）
+    ## MqttManager 需要呼叫 UartManager 來執行 UART 連接、發送、接收封包 (因為MqttHandler在MqttManager中初始化內建)
+
+    ## UartManager 又需要 MqttManager 來執行 MQTT 訂閱與發佈
+
+    ## UartHandler 需要 MqttManager 來發佈封包解析後的 MQTT 訊息，並且需要 UartManager 來存取 UART 裝置
+
+    #但如果在初始化時不先設為 None，物件會無法正確建構，導致初始化過程中出現「未定義物件」的錯誤 ==> 常遇到在 __init__() 階段直接將「尚未建立的物件」傳入，會引發 AttributeError 或 NoneType 問題
+
+    ## 物件導向的依賴注入：將物件之間的依賴在建構階段先「斷開」，等物件建立完成後再「手動綁定」，類似於「依賴注入 (Dependency Injection)」的概念
+#==============
+print("debug: [Step 4: 相互依賴解耦與物件關聯初始化]")
 micropython.mem_info()
+## ==============
+# 避免在初始化階段因物件還未建立好就被呼叫，導致 NoneType 錯誤。
+# 等到所有物件都建立完成後，再進行後設綁定，確保每個類別都能正確存取到其他類別的實體物件
+## ==============
 ## 這時候 `mqtt_manager` 已經初始化完畢，直接取出 `mqtt_manager.mqtt_handler`
 mqtt_handler = mqtt_manager.mqtt_handler  # 直接用 `MqttManager` 內建的 `MqttHandler`
 
-# 設定 MQTT Handler 到 UART Manager
+# 已有了mqtt_handler，設定 MQTT Handler 到 UART Manager
 uart_manager.mqtt_handler = mqtt_handler
 
-# 設定 MQTT Handler 到 UART Handler
+# 已有了mqtt_handler，設定 MQTT Handler 到 UART Handler
 uart_handler.mqtt_handler = mqtt_handler
 
-# 設定 UART Manager 到 MQTT Manager
+# 已有了uart_manager，，設定 UART Manager 到 MQTT Manager
 mqtt_manager.uart_manager = uart_manager
 
-#print("Step 5: MQTT 訂閱主題")
-#mqtt_manager.subscribe_topics()  # 確保這時候 `MqttHandler` 已經準備好
-## mqtt_manager先預留參數 等 `uart_manager` 建立後，再補充
 
-# # 設置 MQTT 訂閱回調函數
-# mqtt_manager.set_callback(handler.process_message)
 # 創建計時器物件
 server_report_timer = Timer(0)
 claw_check_timer = Timer(1)
 LCD_update_timer = Timer(2)
 
-# 建立並執行uart_FEILOLI_recive_packet_task
-#_thread.start_new_thread(uart_FEILOLI_recive_packet_task, ())
-#使用物件導向
-# 主執行緒任務
-# def thread_task():
-#     while True:
-#         with uart_manager.uart_lock:
-#             gc.collect()
-#             uart_manager.receive_packet()
-#             gc.collect()
+
 gc.collect()
 print("執行緒開始")
 #_thread.stack_size(8 * 1024)  # 只需設置一次

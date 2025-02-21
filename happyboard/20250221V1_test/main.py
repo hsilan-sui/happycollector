@@ -3,10 +3,10 @@
 import micropython
 micropython.mem_info()
 
-import wifimgr
+#import wifimgr
 from utime import sleep
 #import machine
-import senko
+#import senko
 import os
 #from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin, WDT
@@ -16,12 +16,13 @@ from BN165DKBDriver import readKBData
 import machine
 #　lcd 模組
 from lcd_manager import LCDManager
+from wifi_manager import WiFiManager #wifi管理類
 # 165D键盘的四根数据线对应的GPIO
 CP = Pin(0, Pin.OUT)
 CE = Pin(0, Pin.OUT)
 PL = Pin(32, Pin.OUT)
 Q7 = Pin(33, Pin.IN)
- 
+
 
 #led = Pin(2, Pin.OUT)
 LCD_EN = Pin(27, Pin.OUT, value=1)#第三個參數是預設輸出電 #LCD_EN.value(1)
@@ -35,7 +36,6 @@ ESP32_TXD2_FEILOLI = Pin(17, Pin.IN)
 lcd_mgr = LCDManager.get_instance() 
 # LCD單例初始化
 lcd_mgr.initialize()
-
 lcd_mgr.fill()  # 使用預設顏色（黑色）
 # 繪製文字
 lcd_mgr.draw_text(0, 0, fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLUE, bgmode=-1) 
@@ -47,7 +47,7 @@ gc.collect()
 print(gc.mem_free())
 
 
-#　待優化為工具函式
+# #　待優化為工具函式
 def UDP_Load_Wifi():
     try:
         import usocket as socket
@@ -94,47 +94,42 @@ def UDP_Load_Wifi():
 
 if readKBData(1,CP,CE,PL,Q7)[0] == 0 :
     print("SW4被按下，進入UDP load wifi")
+    #from utils import UDP_Load_Wifi
     UDP_Load_Wifi()
 elif ESP32_TXD2_FEILOLI.value() == 0 :
     print("ESP32_TXD2_FEILOLI被拉Low，進入UDP load wifi")
+    #from utils import UDP_Load_Wifi
     UDP_Load_Wifi()
 
-#　這裡有重複待優化(移到utils.py)
-# def get_wifi_signal_strength(wlan):
-#     if wlan.isconnected():
-#         signal_strength = wlan.status('rssi')
-#         return signal_strength
-#     else:
-#         print("請確認WiFi 未連接，無法檢測信號強度。")
-#         return None
 
 sleep(3)
 wdt=WDT(timeout=1000*60*5) 
 
-wlan = wifimgr.get_connection()
-if wlan is None:
-    print("Could not initialize the network connection.")
-    while True:
-        pass  # you shall not pass :D
+# =============================
+# wifi連線
+# =============================
+wifi_manager = WiFiManager()
+network_info = wifi_manager.connect()
+print(f"網路資料:{network_info}")
 
-from utils import get_wifi_signal_strength
-signal_strength = get_wifi_signal_strength(wlan)
-if signal_strength is not None:
+if network_info: #會顯示net work config資料
+    signal_strength = wifi_manager.get_signal_strength()
     print("WiFi Signal Strength:", signal_strength, "dBm")
-else:
-    print("Unable to retrieve signal strength.")
+    
+
+
 
 # Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
 print("ESP OK")
 
 lcd_mgr.draw_text(0 , 16, text='SSID:')
-
-lcd_mgr.draw_text(5 * 8 , 16, text=wlan.config('essid'))
-
-lcd_mgr.draw_text(0 , 16 * 2, text=wlan.ifconfig()[0])
-
+lcd_mgr.draw_text(5 * 8 , 16, text=wifi_manager.ssid)
+lcd_mgr.draw_text(0 , 16 * 2, text=network_info['ip'])
 lcd_mgr.show()
-
+print(gc.mem_free())
+# =============================
+# NTP伺服器與時間處理
+# =============================
 # 增加多個NTP伺服器選項(失敗就會跳下一個嘗試)
 def tw_ntp(must=False):
     ntp_servers = [
@@ -146,85 +141,64 @@ def tw_ntp(must=False):
         "time.google.com" #Google NTP 伺服器，全球適用 
     ]  
     ntptime.NTP_DELTA = 3155673600 # UTC+8 的 magic number
-    count = 1 if not must else 100
+    #3155673600 秒 = UTC+8 的時間修正值（因為 MicroPython 預設 NTP 是 UTC 1970 年）
+    #count = 1 if not must else 10 #最多嘗試10次
 
-    for _ in  range(count):
-        for server in ntp_servers:
-            try:
-                ntptime.host = server
-                ntptime.settime()
-                print(f"NTP 時間同步成功，使用 {server}")
-                return True
-            except Exception as e:
-                print(f"嘗試 {server} 失敗: {e}")
-                sleep(1)
-                continue  # 不 return False，繼續嘗試下一個伺服器
+    #for _ in  range(count):
+    for server in ntp_servers:
+        try:
+            ntptime.host = server # 調整時間的基準值
+            ntptime.settime() #設定timeout 
+            print(f"NTP 時間同步成功，使用 {server}")
+            return True
+        except Exception as e:
+            print(f"嘗試 {server} 失敗: {e}")
+            #sleep(1)
+            sleep(1)  # uniform(1, 3)隨機等待 1~3 秒，降低被封鎖的風險
+            continue  # 不 return False，繼續嘗試下一個伺服器
     print("所有 NTP 伺服器皆無法同步，改用 HTTP 時間")
-    from utils import get_http_time
     # 用http做時間同步的備援
-    get_http_time()
+    wifi_manager.get_http_time()
 
 
-
-
-# 時間RTC(處理有時連不上的問題)
-# def tw_ntp(host='clock.stdtime.gov.tw', must=False):
-#   """
-#   host: 台灣可用的 ntp server 如下可任選，未指定預設為 clock.stdtime.gov.tw
-#     tock.stdtime.gov.tw
-#     watch.stdtime.gov.tw
-#     time.stdtime.gov.tw
-#     clock.stdtime.gov.tw
-#     tick.stdtime.gov.tw
-#   must: 是否非對到不可
-#   """ 
-#   ntptime.NTP_DELTA = 3155673600 # UTC+8 的 magic number
-#   ntptime.host = host
-#   count = 1
-#   if must:
-#     count = 100
-#   for _ in  range(count):
-#     try:
-#       ntptime.settime()
-#     except:
-#       sleep(1)
-#       continue
-#     else:
-#       return True
-#   return False
-
+#這裡待做斷網測試
 tw_ntp(must=True)
 
+# =============================
+# OTA更新相關
+# =============================
 # 檔案名稱
 filename = 'otalist.dat'
 
 # 取得目錄下的所有檔案和資料夾
 file_list = os.listdir()
 print(file_list)
+print(gc.mem_free())
 # 檢查檔案是否存在
 if filename in file_list:
+    gc.collect()
+    print(gc.mem_free())
     # 在這邊要做讀取OTA列表，然後進行OTA的執行
     print("OTA檔案存在")
+    import senko
     lcd_mgr.draw_text(0 , 16 * 3, text="OTAing...")
     lcd_mgr.show()
     #debug test
-    print("hi ota prepare")
     try:
-      print("hi ota prepare2")
       with open(filename) as f:
           lines = f.readlines()[0].strip()
-          print(f"hi ota prepare3 {lines}")
 
       lines = lines.replace(' ', '')
-      print(f"hi ota prepare4 {lines}")
       # 移除字串中的雙引號和空格，然後使用逗號分隔字串
       file_list = [file.strip('"') for file in lines.split(',')]
-      print(f"hi ota prepare5 {file_list}")
+
+      # Senko初始化 執行ota 
       OTA = senko.Senko(
           user="hsilan-sui",  # Required
           repo="happycollector",  # Required
           branch="Sui_Branch",  # Optional: Defaults to "master"
-          working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
+          working_dir="happyboard/20250219V2_test_oop__timer",  # Optional: Defaults to "app"
+          # "happyboard/20230524V1"
           files=file_list
       )
     #   OTA = senko.Senko(
@@ -234,8 +208,9 @@ if filename in file_list:
     #       working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
     #       files=file_list
     #   )
-     
-      print(f"hi ota prepare6 {file_list}")
+
+      gc.collect()
+      print(f"Debugger:[main] 要進Senko {file_list}, {gc.mem_free()}")
       if OTA.update():
           print("Updated to the latest version! Rebooting...")
           os.remove(filename)
@@ -251,6 +226,9 @@ else:
 
 print("ESP OTA OK")
 
+# =============================
+# 運行主程式
+# =============================
 while True:
     for i in range(3, 0, -1):
         lcd_mgr.draw_text(0, 16 * 3, text=f"CountDown...{str(i)}",bg=lcd_mgr.color.BLACK, bgmode=-1)
@@ -260,6 +238,7 @@ while True:
     gc.collect()
     try:
         print("執行Data_Collection_Main.py...")
+        print("Debugger:[main.py] 執行Data_Collection_Main.py之前 記憶體:")
         micropython.mem_info()
         execfile('Data_Collection_Main.py')
     except Exception as e:

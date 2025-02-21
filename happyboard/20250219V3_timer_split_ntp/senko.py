@@ -54,7 +54,8 @@ class Senko:
         changes = []
 
         for file in self.files:
-            while(gc.mem_free()<60000):
+            #while(gc.mem_free()<60000): # 會在這裡無限重啟 OTA後(gc free是58913)gc容量小於6000 所以會陷入無限循環死機 這裡我改成 test: 56000
+            while(gc.mem_free() < 56000): 
                 gc.collect()
                 print(gc.mem_free())
                 sleep(1)

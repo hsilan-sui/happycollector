@@ -4,10 +4,6 @@ from machine import UART
 import utime
 import _thread #執行緒模組
 import gc
-#rom uart_handler import UartHandler
-
-#建立全域鎖
-# uart_lock = _thread.allocate_lock()
 
 class UartManager:
     def __init__(
@@ -16,10 +12,13 @@ class UartManager:
         '''初始化 UART 連接'''
         self.uart_FEILOLI = UART(2, baudrate=19200, tx=17, rx=16)
         self.packet_id = 0
+    
+        #傳參
         self.claw_1 = claw_1
         self.KindFEILOLIcmd = KindFEILOLIcmd
         self.uart_handler = uart_handler  # 讓 UART 解析封包時用
         self.mqtt_handler = mqtt_handler  # 讓 UART 也能直接發送 MQTT 訊息
+
         # 在UartManager __init__中添加
         self.rx_queue = []
         self.uart_lock = _thread.allocate_lock() #啟用互斥鎖
@@ -164,30 +163,6 @@ class UartManager:
                 #避免任何未預期讓整個執行緒退出
                 print("debug: receive_packet() 執行緒拋出例外錯誤",e)
                 utime.sleep_ms(100)
-    #執行緒 互斥鎖
-    # def receive_packet(self):
-    #     """接收 UART 封包並交由 uart_handler 處理
-    #     這裡只做「封包重組」及「校驗」，真正的內容解析在 uart_handler 裡 parse_packet() 負責"""
-
-    #     with self.uart_lock:
-    #         print("debug: [uart_manager.receive_packet 執行緒 &uart_lock啟動中..]:")
-    #         try:
-    #             if self.uart_FEILOLI.any(): # 如果 UART 裝置有資料可讀，先把所有可讀資料一次讀完
-    #                 receive_data = self.uart_FEILOLI.read()
-    #                 if receive_data:
-    #                     self.rx_queue.extend(receive_data) #將 bytes append 進 rx_queue
-    #                     print(f"DEBUG: Received Raw Data 收到執行緒receive_packet: {receive_data}")
-
-    #                     # 累積rx_queue佇列足夠後，就嘗試解析
-    #                     self._process_rx_queue()
-    #                 else:
-    #                     # 沒資料就稍作休眠
-    #                     print("DEBUG: No data received from UART")
-    #                     utime.sleep_ms(100)  
-    #         except Exception as e: 
-    #             #避免任何未預期讓整個執行緒退出
-    #             print("debug: receive_packet() 執行緒拋出例外錯誤",e)
-    #             utime.sleep_ms(100)
 
     def _process_rx_queue(self):
         """
@@ -226,37 +201,6 @@ class UartManager:
                 print("debug: 已發送給解析封包 parse_packet 功能去了", self._format_packet(packet_bytes))
             else:
                 print("封包校驗失敗")
-
-    # def receive_packet(self):
-    #     """接收 UART 封包並交由 uart_handler 處理
-    #     這裡只做「封包重組」及「校驗」，真正的內容解析在 uart_handler 裡 parse_packet() 負責"""
-    #     print("debug: [uart_manager.receive_packet 執行緒啟動中..]:")
-    #     while True:  # 持續執行接收任務|執行緒需要持續運作，等待 UART 接收資料 加入Try except 
-    #         if self.uart_FEILOLI.any(): # 如果 UART 裝置有資料可讀，先把所有可讀資料一次讀完
-    #             receive_data = self.uart_FEILOLI.read()
-    #             print(f"DEBUG: Received Raw Data: {receive_data}")
-    #             self.rx_queue.extend(receive_data)
-
-    #             while len(self.rx_queue) >= 16:
-    #                 packet = bytearray(16)
-    #                 packet[0] = self.rx_queue.pop(0)
-
-    #                 if packet[0] == 0x2D and self.rx_queue[0] == 0x8A:
-    #                     packet[1] = self.rx_queue.pop(0)
-    #                     checksum = 0xAA
-    #                     for i in range(2, 16):
-    #                         packet[i] = self.rx_queue.pop(0)
-    #                         checksum ^= packet[i]
-                        
-    #                     if checksum == 0x00:  # 校驗成功
-    #                         print("debug: 收到有效封包:", self._format_packet(packet))
-    #                         self.uart_handler.parse_packet(packet)  # 交由 uart_handler 處理詳細的封包內容
-    #                         print("debug: 已發送給解析封包parse_packet功能去了", self._format_packet(packet))
-    #                     else:
-    #                         print("封包校驗失敗")
-    #         else:
-    #             print("DEBUG: No data received from UART")
-    #             utime.sleep_ms(100)
 
     def _format_packet(self, packet):
         """格式化封包輸出"""
