@@ -125,9 +125,7 @@ class Senko:
                 # 打印整體記憶體資訊
                 # =====
                 gc.collect()
-                
-                #print(gc.mem_free())
-                print(f"{file}: ===>可用記憶體:")
+                print(f'Debugger:[while內] 釋放記憶體：')
                 micropython.mem_info()
                 sleep(1)
                 
@@ -155,25 +153,14 @@ class Senko:
             else:
                  # **清空 latest_version 和 local_version**
                 print(f"Debugger:[latest_version與local_version & gc以前] 遠端和本地檔案內容一致，記憶體:{gc.mem_free()}")
+                del latest_version, local_version
                 gc.collect()
                 print(f"Debugger:[latest_version與local_version& gc以後] 遠端和本地檔案內容一致，無須更新，不用重啟，記憶體:{gc.mem_free()}")
-            ## 
             # 釋放記憶體
             gc.collect()
             print(f"Debugger:[gc後]:{gc.mem_free()}")
         return changes
 
-
-    # def fetch(self): # 沒有使用
-    #     """Check if newer version is available.
-
-    #     Returns:
-    #         True - if is, False - if not.
-    #     """
-    #     if not self._check_all():
-    #         return False
-    #     else:
-    #         return True
     # 執行 OTA 更新
     def update(self):
         changes = self._check_all() #呼叫 _check_all() 找出需要更新的檔案
