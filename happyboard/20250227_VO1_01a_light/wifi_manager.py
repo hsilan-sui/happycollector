@@ -48,12 +48,6 @@ class WiFiManager:
             print(f"Wi-Fi 設定已更新: SSID={ssid}, PASSWORD=******")
         except Exception as e:
             print("無法寫入 Wi-Fi 設定:", e)
-
-    def is_connected(self):
-        """檢查 WiFi 是否仍然連線"""
-        import network
-        wlan = network.WLAN(network.STA_IF)
-        return wlan.isconnected()  # True 表示仍然連線
     
     def disconnect(self):
         """確保 Wi-Fi 連線被清除，避免 Wi-Fi 內部錯誤"""

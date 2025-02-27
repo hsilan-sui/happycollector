@@ -29,18 +29,18 @@ class TimerManager:
     def server_report_timer_callback(self, timer):
 
             # **檢查 WiFi 連線**
-        if not self.wifi_manager.is_connected():
-            print("[WARNING] WiFi 斷線，正在嘗試重新連接...")
-            self.now_main_state.transition('WiFi is disconnect')
-            self.LCD_update_flag['WiFi'] = True  # **強制更新 LCD**
-            return  # WiFi 斷線時不執行 MQTT 相關邏輯
+        # if not self.wifi_manager.is_connected():
+        #     print("[WARNING] WiFi 斷線，正在嘗試重新連接...")
+        #     self.now_main_state.transition('WiFi is disconnect')
+        #     self.LCD_update_flag['WiFi'] = True  # **強制更新 LCD**
+        #     return  # WiFi 斷線時不執行 MQTT 相關邏輯
 
-        # **檢查 MQTT 連線**
-        if not self.mqtt_manager.is_connected():
-            print("[WARNING] MQTT 連線斷開，正在正在重新連線...")
-            self.now_main_state.transition('MQTT is not OK')
-            self.LCD_update_flag['WiFi'] = True  # **強制更新 LCD**
-            return  # MQTT 斷線時不繼續執行發佈資料
+        # # **檢查 MQTT 連線**
+        # if not self.mqtt_manager.is_connected():
+        #     print("[WARNING] MQTT 連線斷開，正在正在重新連線...")
+        #     self.now_main_state.transition('MQTT is not OK')
+        #     self.LCD_update_flag['WiFi'] = True  # **強制更新 LCD**
+        #     return  # MQTT 斷線時不繼續執行發佈資料
         
         if self.mqtt_manager.client is not None:
                 self.mqtt_manager.check_messages()

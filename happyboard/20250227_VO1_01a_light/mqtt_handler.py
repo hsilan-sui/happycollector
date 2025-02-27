@@ -78,6 +78,11 @@ class MqttHandler:
                 # 確保lcd會更新時間
                 self.LCD_update_flag['Time'] = True
                 print(f"設定 LCD_update_flag['Time'] = True，LCD 將更新時間{timestamp}")
+
+                # **退訂 MQTT 時間主題**
+                topic = f"{self.mqtt_manager.sub_response_time_prefix}/response_time"
+                print(f"退訂 MQTT 主題: {topic}")
+                self.mqtt_manager.client.unsubscribe(topic)
             else:
                 print("無法解析時間戳: JSON 中沒有 'timestamp'")
         except Exception as e:

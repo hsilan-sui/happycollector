@@ -191,7 +191,7 @@ if filename in file_list:
           user="hsilan-sui",  # Required
           repo="happycollector",  # Required
           branch="Sui_Branch",  # Optional: Defaults to "master"
-          working_dir="happyboard/20250221V1_test_delete_ntp",  # Optional: Defaults to "app"
+          working_dir="happyboard/20250227_VO1_01a_light",  # Optional: Defaults to "app"
           # "happyboard/20230524V1"
           files=file_list
       )

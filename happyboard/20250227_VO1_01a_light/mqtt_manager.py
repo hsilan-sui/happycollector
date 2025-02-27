@@ -53,6 +53,8 @@ class MqttManager:
         #這裡直接初始化 mqtt_handler 再將uart_manager傳入
         self.mqtt_handler = MqttHandler(self, self.claw_1, self.uart_manager, self.wifi_manager, self.LCD_update_flag)
 
+        # 這裡定義訂閱時間的主題前綴
+        self.sub_response_time_prefix = "000000000000/00000000-0000-0000-0000-000000000000"
         # self.last_time_check = utime.time()  # 上次時間檢查時間
         # self.time_check_interval = 60  # 每 60 秒檢查一次
 
@@ -102,7 +104,7 @@ class MqttManager:
         topics = [
             f"{self.mac_id}/{self.token}/commands", 
             f"{self.mac_id}/{self.token}/fota",
-            f"{self.mac_id}/{self.token}/response_time" #訂閱 time_response
+            f"{self.sub_response_time_prefix}/response_time" #訂閱 time_response
         ]
         for topic in topics:
             try:
@@ -129,17 +131,6 @@ class MqttManager:
     #     topic = f"{self.mac_id}/{self.token}/getTimeNow"
     #     print(f"Debugger:[{topic}] 發送請求取得時間")
     #     self.client.publish(topic, ujson.dumps({"request": "getTimeNow"}))
-
-    def is_connected(self):
-        """ 檢查 MQTT 連線是否正常 """
-        if self.client:
-            try:
-                self.client.ping()  # 發送 PING 檢查是否存活
-                print("mqtt is still connected")
-                return True
-            except:
-                return False
-        return False
     
     def reconnect_mqtt(self):
         """ 如果 MQTT 斷線，則重新連線 """
@@ -187,7 +178,7 @@ class MqttManager:
                 self.mqtt_handler.process_commands(data)
                 print(f"debug: 有完成發送MQTT主題:{data}")
                 ##加入時間
-            elif topic.decode() == f"{mq_topic_prefix}/response_time":
+            elif topic.decode() == f"{self.sub_response_time_prefix}/response_time":
                 self.mqtt_handler.process_time_response(data)
             else:
                 print(f"收到未知 topic: {topic.decode()}")
@@ -197,32 +188,11 @@ class MqttManager:
             print(f"MQTT 回調函式錯誤: {e}")
 
 
-    # def set_callback(self, callback):
-    #     """ 設定 MQTT 訂閱回呼函數 """
-    #     if self.client:
-    #         self.client.set_callback(callback)
-    #     else:
-    #         print("無法設置 callback，MQTT 未初始化")
-    def is_connected(self):
-        """檢查 MQTT 是否仍然在線"""
-        if self.client:
-            try:
-                self.client.ping()  # 透過 PING 確認 MQTT 連線
-                return True
-            except:
-                return False
-        return False
     
     def check_messages(self):
         """確認是否有新的mqtt訊息"""
         try:
             self.client.check_msg()
-
-            #  # 定期檢查時間
-            # if utime.time() - self.last_time_check >= self.time_check_interval:
-            #     self.last_time_check = utime.time()
-            #     if utime.time() < 1000000000:  # 若時間異常 (Unix timestamp 小於正常範圍)
-            #         self.request_time()
         except OSError as e:
             print("MQTT connection lost, reconnecting...")
             self.connect_mqtt()
