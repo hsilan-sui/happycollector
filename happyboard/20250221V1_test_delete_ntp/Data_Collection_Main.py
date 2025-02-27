@@ -1,4 +1,4 @@
-VERSION = "V1.08c_sui"
+VERSION = "V1.08d_sui"
 
 import micropython
 print("Debugger:[Data_Collection_Main] 首行，記憶體:")
