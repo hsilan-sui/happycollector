@@ -179,6 +179,10 @@ class MqttManager:
                 print(f"debug: 有完成發送MQTT主題:{data}")
                 ##加入時間
             elif topic.decode() == f"{self.sub_response_time_prefix}/response_time":
+                print(f"[MQTT Received] topic: {topic.decode()}, message: {data}")
+                # 如果已經退訂 response_time，卻還收到這個主題，就顯示警告
+                if topic.decode() == "000000000000/00000000-0000-0000-0000-000000000000/response_time":
+                    print("🚨 [WARNING] ESP32 仍然收到 response_time，退訂可能失敗！")
                 self.mqtt_handler.process_time_response(data)
             else:
                 print(f"收到未知 topic: {topic.decode()}")
@@ -197,3 +201,5 @@ class MqttManager:
             print("MQTT connection lost, reconnecting...")
             self.connect_mqtt()
 
+
+    

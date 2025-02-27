@@ -82,11 +82,45 @@ class MqttHandler:
                 # **退訂 MQTT 時間主題**
                 topic = f"{self.mqtt_manager.sub_response_time_prefix}/response_time"
                 print(f"退訂 MQTT 主題: {topic}")
-                self.mqtt_manager.client.unsubscribe(topic)
+                self.mqtt_unsubscribe(topic)
             else:
                 print("無法解析時間戳: JSON 中沒有 'timestamp'")
         except Exception as e:
             print(f"處理時間戳錯誤: {e}")
+
+    def mqtt_unsubscribe(self, topic):
+        """手動發送取消訂閱的封包"""
+        
+        try:
+            # 產生packet id 避免重複
+            packet_id = utime.ticks_ms() & 0XFFFF
+            pkt = bytearray() #
+
+            #MQTT UNSUBSCRIBE 固定 Header (0xA2) & 預留長度 (0x00)
+            pkt.extend(b"\xA2\x00")
+
+            #封包識別碼(Packet Identifier, 2 bytes)
+            pkt.append((packet_id >> 8) & 0xFF) # 高8位
+            pkt.append(packet_id & 0xFF) # 低8位
+                       
+            #計算topic 長度 並加入
+            topic_len = len(topic)
+            pkt.append((topic_len >> 8) & 0xFF)# 主題長度高8位
+            pkt.append(topic_len & 0xFF)# 主題長度低8位
+                       
+            # 加入主題名稱
+            pkt.extend(topic.encode())
+
+            #設定mqtt長度 # 設定 MQTT 長度 (Variable Length)
+            pkt[1] = len(pkt) - 2 # 計算並填入 MQTT Variable Length
+
+            #發送unsubscrib 封包
+            self.mqtt_manager.client.sock.send(pkt)
+            print(f"成功手動退訂: {topic}")
+
+
+        except Exception as e:
+            print(f"手動退訂 MQTT 主題失敗: {e}")
     # def process_time_response(self, data):
         
     #     try:
