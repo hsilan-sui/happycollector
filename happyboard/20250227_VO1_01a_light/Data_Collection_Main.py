@@ -128,7 +128,7 @@ class KindFEILOLIcmd:
     #     Send_Starting_games = 220
     Send_Starting_once_game = 221
     Ask_Transaction_account = 321 # 查詢:遠端帳目
-    #Ask_Coin_account = 322 # 查詢:投幣帳目
+    Ask_Coin_account = 322 # 查詢:投幣帳目
     
     Send_Clean_transaction_account = 323 # 清除:遠端帳目
     #Clean_Coin_account = 324 ## 清除:投幣帳目
@@ -281,23 +281,12 @@ main_while_delay_seconds = 1
 while True:
 
     utime.sleep_ms(500)
+    
 
     current_time = utime.ticks_ms()
     if (utime.ticks_diff(current_time, last_time) >= main_while_delay_seconds * 1000):
         last_time = utime.ticks_ms()
 
-        #  ## **檢查 WiFi 狀態**
-        # if not wifi_manager.is_connected():
-        #     print("[WARNING] WiFi 斷線，正在嘗試重新連線...")
-        #     now_main_state.transition('WiFi is disconnect')
-        #     continue  # WiFi 斷線時，跳過其他邏輯，等待下次迴圈再嘗試
-
-        # ## **檢查 MQTT 狀態**
-        # if not mqtt_manager.is_connected():
-        #     print("[WARNING] MQTT 斷線，正在嘗試重新連線...")
-        #     now_main_state.transition('MQTT is not OK')
-        #     mqtt_manager.connect_mqtt()
-        #     continue  # 重新連線後等待下次迴圈進行後續邏輯
 
         if now_main_state.state == MainStatus.NONE_WIFI:
             print('\n\rnow_main_state: WiFi is disconnect, 開機秒數:', current_time / 1000)

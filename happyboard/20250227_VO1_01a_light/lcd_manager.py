@@ -48,6 +48,7 @@ class LCDManager:
 
             from dr.display import display
             import fonts.spleen16 as spleen16
+
             #初始化繪製
             self.dis = display(self.st7735, 'ST7735_FB', self.color.WHITE, self.color.BLUE)
             self.spleen16 = spleen16
@@ -99,21 +100,21 @@ class LCDManager:
         """檢查 LCD 是否已初始化"""
         return self.st7735 is not None
 # 目前覺得不太會需要清除LCD 
-#     def cleanup(self):
-#         """清理 LCD 資源"""
-#         try:
-#             if self.st7735:
-#                 self.st7735 = None
-# 
-#             if self.spi:
-#                 self.spi.deinit()
-#                 self.spi = None
-#             
-#             self.dis = None
-#             self.color = None
-#             self.spleen16 = None
-#             LCDManager._instance = None
-#             gc.collect()
-#             print("LCD 資源清理完成")
-#         except Exception as e:
-#             print("LCD 資源清理失敗:", e)
+    def cleanup(self):
+        """清理 LCD 資源"""
+        try:
+            if self.st7735:
+                self.st7735 = None
+
+            if self.spi:
+                self.spi.deinit()
+                self.spi = None
+            
+            self.dis = None
+            self.color = None
+            self.spleen16 = None
+            LCDManager._instance = None
+            gc.collect()
+            print("LCD 資源清理完成")
+        except Exception as e:
+            print("LCD 資源清理失敗:", e)
