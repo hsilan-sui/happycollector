@@ -87,7 +87,7 @@ class UartHandler:
                 self.claw_1.Enable_random_of_Pushing_talon = packet[6]
                 self.claw_1.Enable_random_of_Clamping = packet[7]
                 self.claw_1.Time_of_Push_talon = packet[8] * 0.1
-                self.claw_1.Time_of_Suspend_and_Pull_talon = packet[9]
+                self.claw_1.Time_of_Suspend_and_Pull_talon = packet[9] * 0.1
                 self.claw_1.Delay_of_Pull_talon = packet[10] * 0.1
                 self.claw_1.Error_Code_of_Machine = packet[12]
 
