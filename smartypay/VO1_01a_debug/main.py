@@ -1,6 +1,6 @@
 import micropython
 import utime
-#from utime import sleep
+from utime import sleep
 import os
 
 from machine import SPI, Pin, WDT
