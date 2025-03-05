@@ -1,4 +1,4 @@
-VERSION = "VO1.01a_light"
+VERSION = "VO1.01a_debug"
 
 # import micropython
 # print("Debugger:[Data_Collection_Main] 首行，記憶體:")
