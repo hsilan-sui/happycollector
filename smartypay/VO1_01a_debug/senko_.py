@@ -1,4 +1,5 @@
 import urequests
+import uhashlib
 import gc
 from time import sleep
 
@@ -7,31 +8,32 @@ class Senko:
     github = "https://github.com"
 
     def __init__(self, user, repo, url=None, branch="master", working_dir="app", files=["boot.py", "main.py"], headers={}):
+        """Senko OTA agent class.
+        Args:
+            user (str): GitHub user.
+            repo (str): GitHub repo to fetch.
+            branch (str): GitHub repo branch. (master)
+            working_dir (str): Directory inside GitHub repo where the micropython app is.
+            url (str): URL to root directory.
+            files (list): Files included in OTA update.
+            headers (list, optional): Headers for urequests.
+        """
         self.base_url = "{}/{}/{}".format(self.raw, user, repo) if user else url.replace(self.github, self.raw)
         self.url = url if url is not None else "{}/{}/{}".format(self.base_url, branch, working_dir)
         self.headers = headers
         self.files = files
 
     def _check_hash(self, x, y):
-        import uhashlib
         x_hash = uhashlib.sha1(x.encode())
         y_hash = uhashlib.sha1(y.encode())
-
         x = x_hash.digest()
         y = y_hash.digest()
+        if str(x) == str(y):
+            return True
+        else:
+            return False
 
-        ## 取的比對結果
-        result = (str(x) == str(y))
-
-        #===== 這裡加入了 del & gc兩個變數  ======
-        del x_hash, y_hash, x, y
-        gc.collect()
-        #===== 這裡加入了 & gc兩個變數  ======
-        
-        return result
-
-
-    def _get_file(self, url): 
+    def _get_file(self, url):
         gc.collect()
         payload = urequests.get(url, headers=self.headers)
         code = payload.status_code
@@ -43,20 +45,21 @@ class Senko:
 
     def _check_all(self):
         changes = []
-
         for file in self.files:
-            ## ==== 這行print加一下會比較好 等到執行到while內的gc 比較有餘裕可以釋放記憶體 ====
-            print(f"Debugger:[while之前]:{gc.mem_free()}")
-            ## ===============================================
+            print('Checking file hash:', file)
+            sleep(2)
+            # Getting latest_file_version
             while(gc.mem_free()<60000):
                 gc.collect()
-            ## ==== 這行print 可以觀察while內清除記憶體是否有正確釋放回來 ====
-                print(f"Debugger:[while內清除]:{gc.mem_free()}")
+                print(gc.mem_free())
                 sleep(1)
-            latest_version = self._get_file(self.url + "/" + file)            
+            latest_version = self._get_file(self.url + "/" + file)
             if latest_version is None:
                 continue
-
+            
+            # Getting local_file_version
+            gc.collect()
+            print(gc.mem_free())
             try:
                 with open(file, "r") as local_file:
                     local_version = local_file.read()
@@ -65,27 +68,25 @@ class Senko:
 
             if not self._check_hash(latest_version, local_version):
                 changes.append(file)
-             ## ==== del latest_version, local_version & 透過gc來釋放記憶體 ====
-            del latest_version, local_version
-            gc.collect()
-            ## ==== 打印出loop 每行最後記憶體狀況 ====
-            print(f"Debugger:[last_line_loop]:{gc.mem_free()}")
+            latest_version = ""
+            local_version = ""
 
         return changes
 
     def update(self):
+        """ Replace all changed files with newer one.
+            Returns: True - if changes were made, False - if not.
+        """
         changes = self._check_all()
+        print("OTAing changed-file:", changes)
         gc.collect()
         for file in changes:
+            sleep(2)
             with open(file, "w") as local_file:
+                print('Writing file:', file)
                 local_file.write(self._get_file(self.url + "/" + file))
             
-
         if changes:
-            ## ==== 打印 知道是有更新清單====
-            print(f"Debugger:[update]: 已更新{changes} {gc.mem_free()}")
             return True
         else:
-            ## ==== 打印 確認遠端 與本地檔案一致 所以沒有執行更新 ====
-            print(f"Debugger:[update]: 遠端與本地檔案一致 no update {gc.mem_free()}")
             return False

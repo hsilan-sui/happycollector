@@ -180,7 +180,7 @@ if filename in file_list:
     print(gc.mem_free())
     # 在這邊要做讀取OTA列表，然後進行OTA的執行
     print("[main]: OTA檔案存在")
-    import senko
+    import smartypay.VO1_01a_debug.senko_ as senko_
     lcd_mgr.draw_text(0 , 16 * 3, text="OTAing...")
     lcd_mgr.show()
     #debug test
@@ -193,14 +193,14 @@ if filename in file_list:
       file_list = [file.strip('"') for file in lines.split(',')]
 
       # Senko初始化 執行ota 
-      OTA = senko.Senko(
+      OTA = senko_.Senko(
           user="hsilan-sui",  # Required
           repo="happycollector",  # Required
           branch="Sui_Branch",  # Optional: Defaults to "master"
-          working_dir="happyboard/20250227_VO1_01a_light",  # Optional: Defaults to "app"
+          working_dir="smartypay/VO1_01a_debug",  # Optional: Defaults to "app"
           # "happyboard/20230524V1"
           files=file_list
-      )
+        ) 
     #   OTA = senko.Senko(
     #       user="pc0808f",  # Required
     #       repo="happycollector",  # Required
