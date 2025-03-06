@@ -111,6 +111,7 @@ class TimerManager:
                 #顯示wifi和MQTT狀態
                 self.lcd_mgr.draw_text(5*8, 7*16, text='OK   ',fg=self.lcd_mgr.color.GREEN, bg=self.lcd_mgr.color.BLACK, bgmode=-1)
 
+
         elif self.LCD_update_flag['Claw_State']:
             self.LCD_update_flag['Claw_State'] = False  
             if self.now_main_state.state == self.MainStatus.NONE_FEILOLI :
@@ -124,6 +125,7 @@ class TimerManager:
                 self.lcd_mgr.draw_text(3 * 8, 5 * 16, text="--")
 
         elif self.LCD_update_flag['Claw_Value']:
+            print("DEBUG: LCD_update_flag['Claw_Value'] = True, 開始更新 LCD")
             self.LCD_update_flag['Claw_Value'] = False
             if self.now_main_state.state == self.MainStatus.STANDBY_FEILOLI or self.now_main_state.state == self.MainStatus.WAITING_FEILOLI:
                 self.lcd_mgr.draw_text(3 * 8, 1 * 16, text="%-8d" % self.claw_1.Number_of_Coin, fg=self.lcd_mgr.color.WHITE, bg=self.lcd_mgr.color.BLACK, bgmode=-1)

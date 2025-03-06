@@ -159,7 +159,7 @@ def tw_ntp(must=False):
             continue  # 不 return False，繼續嘗試下一個伺服器
     print("[main]: NTP server not good，改用 HTTP 備援取得時間")
     # 用http做時間同步的備援
-    # wifi_manager.get_http_time()
+    wifi_manager.get_http_time()
 
 
 #這裡待做斷網測試

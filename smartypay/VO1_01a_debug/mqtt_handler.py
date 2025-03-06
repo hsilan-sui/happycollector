@@ -2,6 +2,9 @@
 import ujson
 import utime
 import gc
+import machine
+
+#from machine import RTC
 #from mqtt_helper import process_fota, process_commands  # 引入訂閱處理函數
 
 class MqttHandler:
@@ -19,7 +22,7 @@ class MqttHandler:
         self.uart_manager = uart_manager
         self.wifi_manager = wifi_manager
         self.LCD_update_flag = LCD_update_flag
-
+   
         
 
     def process_fota(self, data):
@@ -66,7 +69,10 @@ class MqttHandler:
             print(f"指令有誤: {command}")
     ### ========= 處理時間  =============###
     def process_time_response(self, data):
-        """處理 MQTT 來的時間回應，更新 ESP32 RTC"""
+        """處理 MQTT 來的時間回應，更新 RTC 之後自動退訂"""
+        import machine
+        import utime
+
         try:
             if "timestamp" in data: #轉換為utc+8
                 timestamp = int(data["timestamp"]) + (8 * 3600)
@@ -79,69 +85,17 @@ class MqttHandler:
                 self.LCD_update_flag['Time'] = True
                 print(f"設定 LCD_update_flag['Time'] = True，LCD 將更新時間{timestamp}")
 
-                # **退訂 MQTT 時間主題**
-                topic = f"{self.mqtt_manager.sub_response_time_prefix}/response_time"
+                # **這裡退訂 MQTT 時間主題**
+                topic = self.mqtt_manager.sub_response_time_topic
                 print(f"退訂 MQTT 主題: {topic}")
-                self.mqtt_unsubscribe(topic)
+                self.mqtt_manager.unsubscribe_response_time(topic)  # **確保退訂**
             else:
                 print("無法解析時間戳: JSON 中沒有 'timestamp'")
         except Exception as e:
             print(f"處理時間戳錯誤: {e}")
-
-    def mqtt_unsubscribe(self, topic):
-        """手動發送取消訂閱的封包"""
-        
-        try:
-            # 產生packet id 避免重複
-            packet_id = utime.ticks_ms() & 0XFFFF
-            pkt = bytearray() #
-
-            #MQTT UNSUBSCRIBE 固定 Header (0xA2) & 預留長度 (0x00)
-            pkt.extend(b"\xA2\x00")
-
-            #封包識別碼(Packet Identifier, 2 bytes)
-            pkt.append((packet_id >> 8) & 0xFF) # 高8位
-            pkt.append(packet_id & 0xFF) # 低8位
-                       
-            #計算topic 長度 並加入
-            topic_len = len(topic)
-            pkt.append((topic_len >> 8) & 0xFF)# 主題長度高8位
-            pkt.append(topic_len & 0xFF)# 主題長度低8位
-                       
-            # 加入主題名稱
-            pkt.extend(topic.encode())
-
-            #設定mqtt長度 # 設定 MQTT 長度 (Variable Length)
-            pkt[1] = len(pkt) - 2 # 計算並填入 MQTT Variable Length
-
-            #發送unsubscrib 封包
-            self.mqtt_manager.client.sock.send(pkt)
-            print(f"成功手動退訂: {topic}")
+            machine.reset()  # **強制重啟**
 
 
-        except Exception as e:
-            print(f"手動退訂 MQTT 主題失敗: {e}")
-    # def process_time_response(self, data):
-        
-    #     try:
-    #         if "time" not in data:
-    #             print(f"Debugger:[錯誤]:接收的 MQTT 訊息沒有 'time' 欄位")
-    #             return
-    #          # 解析時間字串
-    #         time_str = data["time"]
-    #         print(f"接收到時間: {time_str}")
-
-    #         # 拆分時間字串
-    #         year, month, day, hour, minute, second = map(int, time_str.split('-'))
-
-    #         # 設定 ESP32 的 RTC
-    #         import machine
-    #         rtc = machine.RTC()
-    #         rtc.datetime((year, month, day, 0, hour, minute, second, 0)) 
-
-    #         print(f"Debugger:[RTC更新成功]: {year}-{month}-{day} {hour}:{minute}:{second}")
-    #     except Exception as e:
-    #         print(f"時間解析錯誤: {e}")
     ### ========= commands_handle 指令 所對應的函式  =============###
     def handle_ping(self, data):
         #'ping': self.handle_ping
@@ -249,9 +203,9 @@ class MqttHandler:
         gc.collect()
         
     def set_rtc_from_unix(self, unix_time):
-        """將 UNIX 時間轉換成 RTC 格式並設置"""
-        import utime
-        import machine
+        """將 UNIX 時間轉換成 RTC 格式並設置並進行防呆重啟"""
+        
+
         rtc = machine.RTC()
 
         # 轉換 UNIX 時間為年月日時分秒
@@ -260,25 +214,8 @@ class MqttHandler:
 
         # 設置 ESP32 RTC
         rtc.datetime((year, month, day, 0, hour, minute, second, 0))
-        print(f"RTC 時間已更新: {year}-{month}-{day} {hour}:{minute}:{second}")
-    # def publish_MQTT_claw_data(self, api, para1=""):
-    #     """
-    #     發佈 MQTT 娃娃機數據
-    #     :param api: API 路由名稱 (e.g., 'sales', 'status', 'commandack-*')
-    #     :param para1: 可能的附加參數
-    #     """
-    #     if api == 'sales':
-    #         data = self.build_sales_data(self.claw_1)
-    #     elif api.startswith("commandack"):
-    #         data = self.handle_ack_with_state(api, para1)
-    #     else:
-    #         print(f"無此MQTT發佈的API: {api}")
-    #         return
         
-    #     ## 發佈消息 到 MQTT 
-    #     ## 調用mqtt_manager的發佈方法
-    #     self.mqtt_manager.publish_data(f"{self.mqtt_manager.mac_id}/{self.mqtt_manager.token}/{api}", data)
-    #     gc.collect()
+        print(f"RTC 時間已更新: {year}-{month}-{day} {hour}:{minute}:{second}")
 
     ### 收到mqtt發布sales主題 ==> 啟動回調訂閱=> 再發佈主題 ==>娃娃機數據 相關的主題 #####
     def build_sales_data(self, claw_1):

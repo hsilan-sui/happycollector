@@ -1,3 +1,4 @@
+
 """負責解析 UART 封包內容 並publish娃娃機當前相關數直到mqtt broker"""
 import utime
 import gc
@@ -10,7 +11,7 @@ class UartHandler:
         self.LCD_update_flag = LCD_update_flag  # 用於更新LCD顯示的字典
         self.now_main_state = now_main_state  # 狀態機物件
         self.GPO_CardReader_EPAY_EN = GPO_CardReader_EPAY_EN
-
+        
         #機台設定查詢需要的物件
         self.clawsettingdict = {
             "BasicsettingA": 0x00, #基本設定A

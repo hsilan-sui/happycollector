@@ -24,8 +24,8 @@ from received_claw_data import ReceivedClawData
 # =============================
 # wifi連線 tets ok 
 # =============================
-print(f"[Data]: wifi_manager: {wifi_manager}")
-print(f"[Data]: network_info:{network_info},{wifi_manager.ssid}")
+# print(f"[Data]: wifi_manager: {wifi_manager}")
+# print(f"[Data]: network_info:{network_info},{wifi_manager.ssid}")
 
 # =============================
 # 狀態類型
@@ -249,9 +249,9 @@ uart_manager = UartManager(claw_1=claw_1,
 # 1.mqtt_manager初始化(已含toke取得)
 # 涵蓋娃娃機參數 UART類別 KindFEILOLIcmd類別
 #==============
-print(f"wifi_manager: {wifi_manager}")  # 檢查 wifi_manager 是否有值
-print(VERSION)
-print(network_info["mac"])
+# print(f"wifi_manager: {wifi_manager}")  # 檢查 wifi_manager 是否有值
+# print(VERSION)
+# print(network_info["mac"])
 
 
 #要測試UART_MANAGEr
@@ -272,9 +272,9 @@ mqtt_manager = MqttManager(
 #==============
 
 #==============
-print("Debugger:[Step 4: 相互依賴解耦與物件關聯初始化] 記憶體:")
-micropython.mem_info()
-gc.collect()
+# print("Debugger:[Step 4: 相互依賴解耦與物件關聯初始化] 記憶體:")
+# micropython.mem_info()
+# gc.collect()
 
 ## ==============
 # 避免在初始化階段因物件還未建立好就被呼叫，導致 NoneType 錯誤。
@@ -350,19 +350,17 @@ GPIO_CardReader_PAYOUT.irq(trigger = (Pin.IRQ_FALLING | Pin.IRQ_RISING ), handle
 # ========================
 # 初始化timer
 # =========================
-timer_manager = TimerManager(now_main_state, MainStatus, wifi_manager, uart_manager, mqtt_manager, mqtt_handler, lcd_mgr, wdt, LCD_update_flag, claw_1, WDT_feed_flag, GPO_IO23test)
+timer_manager = TimerManager(now_main_state, MainStatus, wifi_manager, uart_manager, mqtt_manager, mqtt_handler, lcd_mgr, wdt, LCD_update_flag, claw_1, WDT_feed_flag,GPO_IO23test)
 
 gc.collect()
 # print("Debugger:[準備執行緒] 記憶體:")
 # micropython.mem_info()
-#_thread.stack_size(8 * 1024)  # 只需設置一次
+
 _thread.stack_size(16 * 1024)  # 只需設置一次
 #_thread.stack_size(20 * 1024)  # 只需設置一次
 _thread.start_new_thread(uart_manager.receive_packet, ())
-# print("Debugger:[開始執行緒] 記憶體:")
-# micropython.mem_info()
-#_thread.start_new_thread(thread_task, ())
-#print("debug: [啟動執行緒]:", _thread.get_ident())#get_ident() 可以獲得目前執行緒的 ID，若成功啟動會顯示執行緒編號
+
+
 utime.sleep(2) 
 
 
@@ -370,6 +368,9 @@ utime.sleep(2)
 # 執行timer callback
 # =========================
 timer_manager.start_timers()
+
+print("[Data while之前]記憶體:")
+micropython.mem_info()
 
 last_time = 0
 main_while_delay_seconds = 1
@@ -387,11 +388,7 @@ while True:
 
         if now_main_state.state == MainStatus.NONE_WIFI:
             print('\n\rnow_main_state: WiFi is disconnect, 開機秒數:', current_time / 1000)
-            # =============================
-            # wifi連線(在main.py已經有連線 這裡應該要做檢查連線 若斷網再加上一個fn做備援)
-            # =============================
-            #my_internet_data = connect_wifi()
-            # 打印 myInternet 内容
+
             # =============================
             # network_info
             # =============================
@@ -411,11 +408,8 @@ while True:
             # =============================
             # 連線 MQTT
             mqtt_manager.connect_mqtt()
-            #print(f"mqtt: {mqtt_manager}")
-            #mq_client_1 = connect_mqtt()
-
             mq_client_1 = mqtt_manager.client
-            #print(f"mqtt_client: {mq_client_1}")
+
             if mq_client_1 is not None:
                 try:
                     now_main_state.transition('MQTT is OK')
@@ -444,6 +438,5 @@ while True:
             print('\n\rInvalid action! now_main_state:', now_main_state.state)
             print('開機秒數:', current_time / 1000)
             gc.collect()
-         
 
         LCD_update_flag['Time'] = True
