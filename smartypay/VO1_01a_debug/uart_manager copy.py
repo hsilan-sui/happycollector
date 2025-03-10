@@ -257,18 +257,20 @@ class UartManager:
         ######
         #啟動遊戲
         if command == self.KindFEILOLIcmd.Send_Starting_once_game:
-            # packet = bytearray([0xBB, 0x73, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00,
-            #                     0x00, 0x00, 0x00, 0x00, 0x00, self.packet_id, 0x00, 0xAA])
-            #ep uart tset
-            packet = bytearray([0xBB, 0x73, 0x01, 0x02, 0x01, 0x01, 0x00, 0x00,
+            packet = bytearray([0xBB, 0x73, 0x01, 0x02, 0x01, 0x00, 0x00, 0x00,
                                 0x00, 0x00, 0x00, 0x00, 0x00, self.packet_id, 0x00, 0xAA])
             if parameters:
                 for key, value in parameters.items():
                     if key in ['epays', 'freeplays']:
                         index = 5 if key == 'epays' else 6
                         packet[index] = value
-            for i in range(2, 14):
-                packet[15] ^= packet[i]
+
+            
+            # for i in range(2, 14):
+            #     packet[15] ^= packet[i]
+            # 計算xor 
+            packet[15] = self._calculate_xor_checksum(packet)
+
             self.uart_FEILOLI.write(packet)
             print(f"Sent packet to 娃娃機: {self._format_packet(packet)}")
             return
@@ -295,9 +297,8 @@ class UartManager:
                         packet[self.clawcleanitems_positions[item]] = 0x01
                     else:
                         print(f"未知的封包清除項目: {item}")
-            # 計算 XOR 校驗碼
-            for i in range(2, 14):
-                packet[15] ^= packet[i]
+            # 計算 XOR 校驗碼 
+            packet[15] = self._calculate_xor_checksum(packet)
 
             self.uart_FEILOLI.write(packet)
             print(f"Sent packet to 娃娃機 (Send_Clean_transaction_account - {parameters}): {self._format_packet(packet)}")
@@ -318,8 +319,8 @@ class UartManager:
                 ])
             
                 # 計算 XOR 校驗碼
-                for i in range(2, 14):
-                    packet[15] ^= packet[i]
+                # 計算xor 
+                packet[15] = self._calculate_xor_checksum(packet)
 
                 self.uart_FEILOLI.write(packet)
                 print(f"Sent packet to 娃娃機 (Ask_Machine_setting - {parameters}): {self._format_packet(packet)}")
@@ -333,8 +334,10 @@ class UartManager:
             packet = bytearray(packet_map[command] + [0x00] * 8 + [self.packet_id, 0x00, 0xAA])
 
             # 計算 XOR 校驗碼
-            for i in range(2, 14):
-                packet[15] ^= packet[i]
+
+            packet[15] = self._calculate_xor_checksum(packet)
+            # for i in range(2, 14):
+            #     packet[15] ^= packet[i]
 
             # 寫入 UART
             self.uart_FEILOLI.write(packet)
@@ -342,12 +345,19 @@ class UartManager:
         else:
             print(f"未知的指令: {command}")
             
+    # def _calculate_xor_checksum(self, packet):
+    #     """計算封包的 XOR 校驗碼"""
+    #     checksum = 0x00
+    #     for i in range(2, 15):  # 校驗範圍: 2 到 14
+    #         checksum ^= packet[i]
+    #     return checksum
     def _calculate_xor_checksum(self, packet):
         """計算封包的 XOR 校驗碼"""
-        checksum = 0x00
-        for i in range(2, 15):  # 校驗範圍: 2 到 14
+        checksum = 0xAA  
+        for i in range(2, 15):  # XOR 運算範圍: index 2 ~ 14(task id)
             checksum ^= packet[i]
         return checksum
+
     
         #執行緒
     def receive_packet(self):
@@ -393,7 +403,7 @@ class UartManager:
 
             # 如果已知前兩個符合，還要確保整個封包 16 bytes 是否已到齊
             if len(self.rx_queue) < 16:
-                # 未滿 16 bytes，先等下一次再來判斷
+                # 未滿 16 bytes，等下一次再來判斷
                 break
 
             # 取出前 16 bytes 當成一個完整封包
@@ -401,10 +411,11 @@ class UartManager:
             # 從佇列中移除
             del self.rx_queue[:16]
 
-            # 計算校驗
-            checksum = 0xAA
-            for i in range(2, 16):
-                checksum ^= packet_bytes[i]
+            # 與發送相同的 XOR 校驗碼計算方式**
+            checksum = self._calculate_xor_checksum(packet_bytes)
+            # checksum = 0xAA
+            # for i in range(2, 16):
+            #     checksum ^= packet_bytes[i]
 
             if checksum == 0x00:  # 校驗成功
                 print("debug: 收到有效封包:", self._format_packet(packet_bytes))
@@ -412,7 +423,7 @@ class UartManager:
                 self.uart_handler.parse_packet(packet_bytes)
                 print("debug: 已發送給解析封包 parse_packet 功能去了", self._format_packet(packet_bytes))
             else:
-                print("封包校驗失敗")
+                print(f"封包校驗失敗 (計算值: {checksum:02X}, 封包值: {packet_bytes[15]:02X})")
 
     def _format_packet(self, packet):
         """格式化封包輸出"""

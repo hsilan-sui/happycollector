@@ -1,10 +1,14 @@
 # Complete project details at https://RandomNerdTutorials.com
+#測試記憶體內存
+import micropython
+micropython.mem_info()
 
-
+#import wifimgr
 from utime import sleep
-
+#import machine
+#import senko
 import os
-
+#from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin, WDT
 import network
 import ntptime
@@ -193,7 +197,7 @@ if filename in file_list:
           user="hsilan-sui",  # Required
           repo="happycollector",  # Required
           branch="Sui_Branch",  # Optional: Defaults to "master"
-          working_dir="happyboard/20250221V1_VO1_00a_light",  # Optional: Defaults to "app"
+          working_dir="happyboard/20250221V1_test",  # Optional: Defaults to "app"
           # "happyboard/20230524V1"
           files=file_list
       )
@@ -206,7 +210,7 @@ if filename in file_list:
     #   )
 
       gc.collect()
-      #print(f"Debugger:[main] 要進Senko {file_list}, {gc.mem_free()}")
+      print(f"Debugger:[main] 要進Senko {file_list}, {gc.mem_free()}")
       if OTA.update():
           print("Updated to the latest version! Rebooting...")
           os.remove(filename)
@@ -234,6 +238,8 @@ while True:
     gc.collect()
     try:
         print("執行Data_Collection_Main.py...")
+        print("Debugger:[main.py] 執行Data_Collection_Main.py之前 記憶體:")
+        micropython.mem_info()
         execfile('Data_Collection_Main.py')
     except Exception as e:
         print("執行失敗，改跑Data_Collection_Main.mpy", e)

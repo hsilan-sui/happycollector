@@ -1,8 +1,6 @@
 # Complete project details at https://RandomNerdTutorials.com
 
-
 from utime import sleep
-
 import os
 
 from machine import SPI, Pin, WDT
@@ -12,7 +10,8 @@ from BN165DKBDriver import readKBData
 import machine
 #　lcd 模組
 from lcd_manager import LCDManager
-from wifi_manager import WiFiManager #wifi管理類
+from wifi_manager import WiFiManager 
+
 # 165D键盘的四根数据线对应的GPIO
 CP = Pin(0, Pin.OUT)
 CE = Pin(0, Pin.OUT)
@@ -20,7 +19,6 @@ PL = Pin(32, Pin.OUT)
 Q7 = Pin(33, Pin.IN)
 
 
-#led = Pin(2, Pin.OUT)
 LCD_EN = Pin(27, Pin.OUT, value=1)#第三個參數是預設輸出電 #LCD_EN.value(1)
 # keyMenu = Pin(0, Pin.IN, Pin.PULL_UP) #尚未使用先comment掉
 # keyU = Pin(36, Pin.IN, Pin.PULL_UP)
@@ -43,7 +41,7 @@ gc.collect()
 print(gc.mem_free())
 
 
-# #　待優化為工具函式
+#
 def UDP_Load_Wifi():
     try:
         import usocket as socket
@@ -106,7 +104,7 @@ wdt=WDT(timeout=1000*60*5)
 # =============================
 wifi_manager = WiFiManager()
 network_info = wifi_manager.connect()
-print(f"網路資料:{network_info}")
+#print(f"網路WiFi:{network_info}")
 
 if network_info: #會顯示net work config資料
     signal_strength = wifi_manager.get_signal_strength()
@@ -126,7 +124,7 @@ print(gc.mem_free())
 # =============================
 # NTP伺服器與時間處理
 # =============================
-# 增加多個NTP伺服器選項(失敗就會跳下一個嘗試)
+# # 增加多個NTP伺服器選項(失敗就會跳下一個嘗試)
 def tw_ntp(must=False):
     ntp_servers = [
         "clock.stdtime.gov.tw", 
@@ -193,7 +191,7 @@ if filename in file_list:
           user="hsilan-sui",  # Required
           repo="happycollector",  # Required
           branch="Sui_Branch",  # Optional: Defaults to "master"
-          working_dir="happyboard/20250221V1_VO1_00a_light",  # Optional: Defaults to "app"
+          working_dir="happyboard/20250227_VO1_01a_light",  # Optional: Defaults to "app"
           # "happyboard/20230524V1"
           files=file_list
       )
@@ -212,8 +210,8 @@ if filename in file_list:
           os.remove(filename)
           # 這裡重啟 已經讓OTA更新 記憶體會恢復正常
           machine.reset()
-    except:
-      print("Updated error! Rebooting...")
+    except Exception as e:
+      print(f"Updated error! Rebooting... ,{e}")
     os.remove(filename)
 else:
     lcd_mgr.draw_text(0, 16 * 3 ,text="No OTA")
@@ -234,6 +232,7 @@ while True:
     gc.collect()
     try:
         print("執行Data_Collection_Main.py...")
+        #print("Debugger:[main.py] 執行Data_Collection_Main.py之前 記憶體:")
         execfile('Data_Collection_Main.py')
     except Exception as e:
         print("執行失敗，改跑Data_Collection_Main.mpy", e)

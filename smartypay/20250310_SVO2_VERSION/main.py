@@ -1,38 +1,38 @@
-# Complete project details at https://RandomNerdTutorials.com
-
-
+import micropython
+import utime
 from utime import sleep
-
 import os
-
+import senko
 from machine import SPI, Pin, WDT
 import network
 import ntptime
 from BN165DKBDriver import readKBData
 import machine
-#　lcd 模組
+#　模組
 from lcd_manager import LCDManager
-from wifi_manager import WiFiManager #wifi管理類
-# 165D键盘的四根数据线对应的GPIO
-CP = Pin(0, Pin.OUT)
-CE = Pin(0, Pin.OUT)
-PL = Pin(32, Pin.OUT)
-Q7 = Pin(33, Pin.IN)
+from wifi_manager import WiFiManager 
 
 
-#led = Pin(2, Pin.OUT)
+
+print(f"\n\r[main] 開始執行main.py初始化，開機秒數: {utime.ticks_ms() / 1000}")
+gc.collect()
+print(gc.mem_free())
+
+
+
+GPO_CardReader_EPAY_EN = Pin(2, Pin.OUT, value=0)#第三個參數是預設不輸出電 #GPO_CardReader_EPAY_EN.value(0)
+#GPO_CardReader_EPAY_EN.value(0)
+
 LCD_EN = Pin(27, Pin.OUT, value=1)#第三個參數是預設輸出電 #LCD_EN.value(1)
-# keyMenu = Pin(0, Pin.IN, Pin.PULL_UP) #尚未使用先comment掉
-# keyU = Pin(36, Pin.IN, Pin.PULL_UP)
-# keyD = Pin(39, Pin.IN, Pin.PULL_UP)
-ESP32_TXD2_FEILOLI = Pin(17, Pin.IN)
 
-# 把st7735所有相關的模組都寫在lcd_manager
-# 獲取 LCD 單例singleton
-lcd_mgr = LCDManager.get_instance() 
-# LCD單例初始化
+# ==========
+# LCD 模組 初始化
+# ==========
+lcd_mgr = LCDManager.get_instance()
+
 lcd_mgr.initialize()
 lcd_mgr.fill()  # 使用預設顏色（黑色）
+
 # 繪製文字
 lcd_mgr.draw_text(0, 0, fg=lcd_mgr.color.WHITE, bg=lcd_mgr.color.BLUE, bgmode=-1) 
 #bgmode預設是0 ==>使用預設的bgcolor 例如:.fill()所指定的
@@ -42,8 +42,6 @@ lcd_mgr.show()
 gc.collect()
 print(gc.mem_free())
 
-
-# #　待優化為工具函式
 def UDP_Load_Wifi():
     try:
         import usocket as socket
@@ -87,18 +85,27 @@ def UDP_Load_Wifi():
         sleep(3)
         machine.reset()
 
+ESP32_TXD2_FEILOLI = Pin(17, Pin.IN)
+# 165D键盘的四根数据线对应的GPIO
+CP = Pin(0, Pin.OUT)
+CE = Pin(0, Pin.OUT)
+PL = Pin(32, Pin.OUT)
+Q7 = Pin(33, Pin.IN)
 
-if readKBData(1,CP,CE,PL,Q7)[0] == 0 :
+Data_74HC165 = readKBData(1, CP, CE, PL, Q7)
+print("74HC165:", Data_74HC165)
+if Data_74HC165[3] == 0 :
+    print("SW1被按下，結束程式")
+    import sys
+    sys.exit()
+elif Data_74HC165[0] == 0 :
     print("SW4被按下，進入UDP load wifi")
-    #from utils import UDP_Load_Wifi
     UDP_Load_Wifi()
 elif ESP32_TXD2_FEILOLI.value() == 0 :
     print("ESP32_TXD2_FEILOLI被拉Low，進入UDP load wifi")
-    #from utils import UDP_Load_Wifi
     UDP_Load_Wifi()
 
-
-sleep(3)
+utime.sleep(1)
 wdt=WDT(timeout=1000*60*5) 
 
 # =============================
@@ -106,27 +113,25 @@ wdt=WDT(timeout=1000*60*5)
 # =============================
 wifi_manager = WiFiManager()
 network_info = wifi_manager.connect()
-print(f"網路資料:{network_info}")
+#print(f"網路WiFi:{network_info}")
 
 if network_info: #會顯示net work config資料
     signal_strength = wifi_manager.get_signal_strength()
     print("WiFi Signal Strength:", signal_strength, "dBm")
-    
 
-
-
-# Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
-print("ESP OK")
+print("ESP Wi-Fi OK")
 
 lcd_mgr.draw_text(0 , 16, text='SSID:')
 lcd_mgr.draw_text(5 * 8 , 16, text=wifi_manager.ssid)
 lcd_mgr.draw_text(0 , 16 * 2, text=network_info['ip'])
 lcd_mgr.show()
+gc.collect()
 print(gc.mem_free())
+
+
 # =============================
 # NTP伺服器與時間處理
 # =============================
-# 增加多個NTP伺服器選項(失敗就會跳下一個嘗試)
 def tw_ntp(must=False):
     ntp_servers = [
         "clock.stdtime.gov.tw", 
@@ -145,14 +150,14 @@ def tw_ntp(must=False):
         try:
             ntptime.host = server # 調整時間的基準值
             ntptime.settime() #設定timeout 
-            print(f"NTP 時間同步成功，使用 {server}")
+            print(f"[main]: NTP 時間同步成功，使用 {server}")
             return True
         except Exception as e:
-            print(f"嘗試 {server} 失敗: {e}")
+            print(f"[main]: 嘗試 {server} 失敗: {e}")
             #sleep(1)
             sleep(1)  # uniform(1, 3)隨機等待 1~3 秒，降低被封鎖的風險
             continue  # 不 return False，繼續嘗試下一個伺服器
-    print("所有 NTP 伺服器皆無法同步，改用 HTTP 時間")
+    print("[main]: NTP server not good，改用 HTTP 備援取得時間")
     # 用http做時間同步的備援
     wifi_manager.get_http_time()
 
@@ -175,8 +180,8 @@ if filename in file_list:
     gc.collect()
     print(gc.mem_free())
     # 在這邊要做讀取OTA列表，然後進行OTA的執行
-    print("OTA檔案存在")
-    import senko
+    print("[main]: OTA檔案存在")
+    
     lcd_mgr.draw_text(0 , 16 * 3, text="OTAing...")
     lcd_mgr.show()
     #debug test
@@ -187,16 +192,15 @@ if filename in file_list:
       lines = lines.replace(' ', '')
       # 移除字串中的雙引號和空格，然後使用逗號分隔字串
       file_list = [file.strip('"') for file in lines.split(',')]
-
+      #import senko
       # Senko初始化 執行ota 
       OTA = senko.Senko(
           user="hsilan-sui",  # Required
-          repo="happycollector",  # Required
-          branch="Sui_Branch",  # Optional: Defaults to "master"
-          working_dir="happyboard/20250221V1_VO1_00a_light",  # Optional: Defaults to "app"
-          # "happyboard/20230524V1"
+          repo="wonderfulsmartpay",  # Required
+          branch="main",  # Optional: Defaults to "master"
+          working_dir="VO1_02a_version",  
           files=file_list
-      )
+        )
     #   OTA = senko.Senko(
     #       user="pc0808f",  # Required
     #       repo="happycollector",  # Required
@@ -208,17 +212,17 @@ if filename in file_list:
       gc.collect()
       #print(f"Debugger:[main] 要進Senko {file_list}, {gc.mem_free()}")
       if OTA.update():
-          print("Updated to the latest version! Rebooting...")
+          print("[main]: Updated to the latest version! Rebooting...")
           os.remove(filename)
           # 這裡重啟 已經讓OTA更新 記憶體會恢復正常
           machine.reset()
-    except:
-      print("Updated error! Rebooting...")
+    except Exception as e:
+      print(f"[main]: Updated error! Rebooting... ,{e}")
     os.remove(filename)
 else:
     lcd_mgr.draw_text(0, 16 * 3 ,text="No OTA")
     lcd_mgr.show()
-    print("OTA檔案不存在")
+    print("[main]: OTA檔案不存在")
 
 print("ESP OTA OK")
 
@@ -233,9 +237,10 @@ while True:
 
     gc.collect()
     try:
-        print("執行Data_Collection_Main.py...")
+        print("[main]: 執行Data_Collection_Main.py...")
+        print("Debugger:[main.py] 執行Data_Collection_Main.py之前 記憶體:")
+        micropython.mem_info()
         execfile('Data_Collection_Main.py')
     except Exception as e:
         print("執行失敗，改跑Data_Collection_Main.mpy", e)
-        __import__('Data_Collection_Main.mpy')          
-
+        __import__('Data_Collection_Main.mpy')  
