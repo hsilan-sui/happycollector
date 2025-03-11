@@ -195,13 +195,7 @@ if filename in file_list:
           working_dir="happyboard/20250310_HVO2_VERSION", 
           files=file_list
       )
-    #   OTA = senko.Senko(
-    #       user="pc0808f",  # Required
-    #       repo="happycollector",  # Required
-    #       branch="alpha",  # Optional: Defaults to "master"
-    #       working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
-    #       files=file_list
-    #   )
+
 
       gc.collect()
       #print(f"Debugger:[main] 要進Senko {file_list}, {gc.mem_free()}")
