@@ -10,7 +10,8 @@ from BN165DKBDriver import readKBData
 import machine
 #　lcd 模組
 from lcd_manager import LCDManager
-from wifi_manager import WiFiManager 
+#from wifi_manager import WiFiManager 
+from wifimgr import WiFiManager
 
 # 165D键盘的四根数据线对应的GPIO
 CP = Pin(0, Pin.OUT)
