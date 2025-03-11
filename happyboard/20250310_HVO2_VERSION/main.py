@@ -192,8 +192,7 @@ if filename in file_list:
           user="hsilan-sui",  # Required
           repo="happycollector",  # Required
           branch="Sui_Branch",  # Optional: Defaults to "master"
-          working_dir="happyboard/20250227_VO1_01a_light",  # Optional: Defaults to "app"
-          # "happyboard/20230524V1"
+          working_dir="happyboard/20250310_HVO2_VERSION", 
           files=file_list
       )
     #   OTA = senko.Senko(
